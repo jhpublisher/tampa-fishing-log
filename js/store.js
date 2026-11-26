@@ -21,11 +21,11 @@ export const signIn = (email, password) => sb.auth.signInWithPassword({ email, p
 export const signUp = (email, password) => sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } });
 export const signOut = () => sb.auth.signOut();
 
-// Favorite tide stations live on the user's account (no extra table needed).
-export const getFavStations = () => user?.user_metadata?.favStations || [];
-export async function setFavStations(ids) {
+// Starred spots ('spot:<id>' or 'sta:<NOAA id>') live on the user's account (no extra table needed).
+export const getFavPlaces = () => user?.user_metadata?.favPlaces || (user?.user_metadata?.favStations || []).map(id => 'sta:' + id);
+export async function setFavPlaces(keys) {
   if (!user) return;
-  const { data, error } = await sb.auth.updateUser({ data: { favStations: ids } });
+  const { data, error } = await sb.auth.updateUser({ data: { favPlaces: keys } });
   if (!error && data?.user) user = data.user;
 }
 

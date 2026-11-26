@@ -1,5 +1,6 @@
-import { STATIONS, loadStations, getHiLo, heightAt, flowAt, nearestStation } from './tides.js';
-import { moonInfo, solunarDay, forecast } from './solunar.js';
+import { getHiLo, heightAt, flowAt, nearestStation } from './tides.js';
+import { moonInfo } from './solunar.js';
+import * as home from './home.js';
 import { SPECIES, byId, ruleText, checkKeep, isOpen, RULES_AS_OF } from './species.js';
 import { GUIDE } from './guide.js';
 import * as license from './license.js';
@@ -19,124 +20,11 @@ const ls = { get: k => { try { return localStorage.getItem(k); } catch { return 
 function show(view) {
   $$('.view').forEach(v => v.classList.toggle('active', v.id === `view-${view}`));
   $$('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  document.body.dataset.view = view;
   window.scrollTo(0, 0);
   if (view === 'log' && store.currentUser()) renderTrips();
 }
 $$('.tabs button').forEach(b => b.onclick = () => show(b.dataset.view));
-
-// ---------- station ----------
-const stationSel = $('#station');
-// Favorites: saved on this phone, and on James's account when signed in.
-let favs = (() => { try { return JSON.parse(ls.get('favStations') || '[]'); } catch { return []; } })();
-const saveFavs = () => { ls.set('favStations', JSON.stringify(favs)); store.setFavStations(favs).catch(() => { }); };
-const opt = s => `<option value="${s.id}">${esc(s.name)}</option>`;
-const fillStations = () => {
-  const want = stationSel.value || ls.get('station') || '8726520';
-  const fav = favs.map(id => STATIONS.find(s => s.id === id)).filter(Boolean);
-  const rest = STATIONS.filter(s => !favs.includes(s.id));
-  stationSel.innerHTML = fav.length
-    ? `<optgroup label="★ Favorites">${fav.map(opt).join('')}</optgroup><optgroup label="All stations">${rest.map(opt).join('')}</optgroup>`
-    : STATIONS.map(opt).join('');
-  stationSel.value = STATIONS.some(s => s.id === want) ? want : STATIONS[0].id;
-  updateFavBtn();
-};
-const favBtn = $('#fav-btn');
-function updateFavBtn() {
-  const on = favs.includes(stationSel.value);
-  favBtn.textContent = on ? '★' : '☆';
-  favBtn.setAttribute('aria-pressed', String(on));
-  favBtn.setAttribute('aria-label', on ? 'Remove this station from favorites' : 'Add this station to favorites');
-}
-favBtn.onclick = () => {
-  const id = stationSel.value;
-  favs = favs.includes(id) ? favs.filter(x => x !== id) : [...favs, id];
-  saveFavs(); fillStations();
-};
-fillStations();
-loadStations().then(fillStations);
-stationSel.onchange = () => { ls.set('station', stationSel.value); updateFavBtn(); renderToday(); };
-const station = () => STATIONS.find(s => s.id === stationSel.value) || STATIONS[0];
-
-// ---------- today ----------
-async function renderToday() {
-  const st = station(), now = new Date();
-  const moon = moonInfo(now);
-  const day = solunarDay(now, st.lat, st.lng);
-  let hilo = null, tideErr = '';
-  let sample = false;
-  try { hilo = await getHiLo(st.id, now, 8); } catch (e) {
-    tideErr = e.message;
-    // Preview pages can't reach NOAA, so show clearly labeled sample tides there.
-    if (!/github\.io$|localhost|127\.0\.0\.1/.test(location.hostname)) { hilo = sampleHiLo(now); sample = true; }
-  }
-
-  const fc = forecast(now, 7, st.lat, st.lng, hilo);
-  const t0 = fc[0];
-  const flow = hilo ? flowAt(hilo, now) : null;
-  const verdict = t0.score >= 80 ? 'Get out there' : t0.score >= 65 ? 'Good day' : t0.score >= 50 ? 'Fair' : 'Slow day';
-  $('#today-summary').innerHTML = `
-    <div class="today-head">
-      <div class="gauge" style="--v:${t0.score}"><span>${t0.score}</span></div>
-      <div class="today-main">
-        <div class="eyebrow">Today at ${esc(st.name)}</div>
-        <div class="verdict">${verdict}</div>
-        <div class="small">Best: <strong>${t0.best.map(w => `${fmtTime(w.start)}–${fmtTime(new Date(+w.start + 2 * 3600e3))}`).join('</strong> and <strong>')}</strong></div>
-      </div>
-    </div>
-    <div class="chips">
-      <span class="chip">${moon.icon} ${moon.name} · ${Math.round(moon.fraction * 100)}%</span>
-      ${flow ? `<span class="chip">${flow.dir === 'rising' ? '↑' : '↓'} ${heightAt(hilo, now).toFixed(1)} ft, ${flow.dir}</span>` : ''}
-    </div>`;
-
-  // tide chart + list
-  if (hilo) {
-    $('#tide-chart').innerHTML = (sample ? '<p class="warn small">Preview: live NOAA tides are blocked here, so these are SAMPLE tides, not real.</p>' : '') + tideSvg(hilo, now);
-    const d0 = new Date(now); d0.setHours(0, 0, 0, 0); const d1 = new Date(+d0 + 24 * 3600e3);
-    $('#tide-list').innerHTML = hilo.filter(p => p.t >= d0 && p.t < d1)
-      .map(p => `<li><span>${p.type === 'H' ? 'High' : 'Low'}</span><span>${fmtTime(p.t)}</span><span>${p.v.toFixed(1)} ft</span></li>`).join('');
-  } else {
-    $('#tide-chart').innerHTML = `<p class="bad small">Couldn't load NOAA tides (${esc(tideErr)}). Check your connection.</p>`;
-    $('#tide-list').innerHTML = '';
-  }
-
-  $('#solunar').innerHTML = `
-    <ul class="plain">
-      <li><span>Sunrise / sunset</span><span>${fmtTime(day.sunrise)} / ${fmtTime(day.sunset)}</span></li>
-      ${day.periods.map(p => `<li><span>${p.kind === 'major' ? 'Major' : 'Minor'} · ${p.label}</span><span>${fmtTime(p.start)}–${fmtTime(p.end)}</span></li>`).join('')}
-    </ul>`;
-
-  $('#forecast').innerHTML = fc.map(f => `
-    <div class="day">
-      <div class="small">${fmtDay(f.date)} ${f.moon.icon}</div>
-      <div class="bar"><span style="width:${f.score}%"></span></div>
-      <div class="small" style="text-align:right">${f.score}</div>
-      <div class="windows">${f.best.map(w => `${fmtTime(w.start)}–${fmtTime(new Date(+w.start + 2 * 3600e3))}`).join(' · ')}</div>
-    </div>`).join('');
-}
-
-function sampleHiLo(now) {
-  const out = []; let t = new Date(now); t.setHours(0, 0, 0, 0); t = new Date(+t - 22 * 3600e3);
-  for (let i = 0; i < 40; i++) { const hi = i % 2 === 0; out.push({ t, v: hi ? 2.1 : 0.3, type: hi ? 'H' : 'L' }); t = new Date(+t + 6.2 * 3600e3); }
-  return out;
-}
-
-function tideSvg(hilo, now) {
-  const d0 = new Date(now); d0.setHours(0, 0, 0, 0);
-  const W = 600, Hh = 150, pad = 18;
-  const pts = [];
-  for (let m = 0; m <= 1440; m += 10) pts.push([m, heightAt(hilo, new Date(+d0 + m * 60e3))]);
-  const vals = pts.map(p => p[1]).filter(v => v != null);
-  const lo = Math.min(...vals) - 0.2, hi = Math.max(...vals) + 0.2;
-  const x = m => pad + (W - 2 * pad) * m / 1440, y = v => Hh - pad - (Hh - 2 * pad) * (v - lo) / (hi - lo);
-  const path = pts.filter(p => p[1] != null).map((p, i) => `${i ? 'L' : 'M'}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join('');
-  const nm = (now - d0) / 60e3;
-  const ticks = [0, 6, 12, 18, 24].map(h => `<text x="${x(h * 60)}" y="${Hh - 1}" font-size="17" text-anchor="middle" fill="currentColor" opacity=".6">${h === 0 || h === 24 ? '12a' : h === 12 ? '12p' : h > 12 ? (h - 12) + 'p' : h + 'a'}</text>`).join('');
-  return `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Today's tide curve">
-    <path d="${path} L${x(1440)},${Hh - pad} L${x(0)},${Hh - pad}Z" fill="var(--flats)" opacity=".18"/>
-    <path d="${path}" fill="none" stroke="var(--flats)" stroke-width="2.5"/>
-    <line x1="${x(nm)}" x2="${x(nm)}" y1="${pad / 2}" y2="${Hh - pad}" stroke="var(--coral)" stroke-width="2" stroke-dasharray="4 3"/>
-    ${ticks}</svg>`;
-}
 
 // ---------- trips list ----------
 const urls = []; // object URLs to free on re-render
@@ -276,7 +164,7 @@ $('#delete-trip-btn').onclick = async e => {
 // Snapshot tide + moon at the trip start so later stats can use them.
 async function conditionsFor(trip) {
   const when = new Date(`${trip.date}T${trip.start || '12:00'}`);
-  const st = trip.lat != null ? nearestStation(trip.lat, trip.lng) : station();
+  const st = trip.lat != null ? nearestStation(trip.lat, trip.lng) : home.activeStation();
   const moon = moonInfo(when);
   let tide = '';
   try {
@@ -376,16 +264,10 @@ store.watchAuth(u => {
   $('#who').textContent = u?.email || '';
   if (u) {
     authMsg(''); if ($('#view-log').classList.contains('active')) renderTrips();
-    // Merge favorites from the account with any saved on this phone.
-    const remote = store.getFavStations();
-    const merged = [...new Set([...remote, ...favs])];
-    if (merged.length !== remote.length || merged.length !== favs.length) { favs = merged; saveFavs(); }
-    else favs = merged;
-    fillStations();
+    home.syncFavs(); // merge starred spots from the account with this phone's
   }
   else if ($('#view-trip').classList.contains('active')) show('log');
 });
 
 // ---------- start ----------
-renderToday();
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => { });
