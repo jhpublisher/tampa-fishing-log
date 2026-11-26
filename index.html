@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600&display=swap">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=16">
+  <link rel="stylesheet" href="css/style.css?v=17">
 </head>
 <body data-view="today">
   <header class="hero">
@@ -224,10 +224,16 @@
       </div>
       <label class="check"><input type="checkbox" name="kept"> Kept</label>
       <div class="check-result small"></div>
+      <label>Where I cast <input name="cast" placeholder="e.g. dock pilings, grass edge, oyster bar, channel drop-off"></label>
+      <div class="row">
+        <label>Water depth (ft) <input type="number" name="waterDepth" step="0.5" min="0" inputmode="decimal"></label>
+        <label>Depth fished (ft) <input type="number" name="fishDepth" step="0.5" min="0" inputmode="decimal"></label>
+      </div>
       <div class="pics">
         <label class="pic">Fish photo <input type="file" name="photo" accept="image/*"><img class="thumb hidden" alt="Catch photo"></label>
         <label class="pic">Setup photo <span class="small muted">lure, bait, rig</span><input type="file" name="setup" accept="image/*"><img class="setup-thumb thumb hidden" alt="Setup photo"></label>
       </div>
+      <label>My setup <textarea name="setupText" rows="3" placeholder="Rod, reel, line, leader, hook, weight, lure or bait, how it was rigged"></textarea></label>
       <div class="catch-voice"></div>
       <div class="cond small"></div>
     </fieldset>
@@ -236,7 +242,7 @@
   <script src="vendor/leaflet/leaflet.js"></script>
   <script src="vendor/suncalc/suncalc.js"></script>
   <script src="vendor/supabase/supabase.js"></script>
-  <script type="module" src="js/app.js?v=16"></script>
-  <script type="module" src="js/plan.js?v=16"></script>
+  <script type="module" src="js/app.js?v=17"></script>
+  <script type="module" src="js/plan.js?v=17"></script>
 </body>
 </html>

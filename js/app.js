@@ -116,6 +116,10 @@ function addCatchRow(c = {}) {
   $('[name=length]', fs).value = c.length ?? '';
   $('[name=weight]', fs).value = c.weight ?? '';
   $('[name=bait]', fs).value = c.bait || '';
+  $('[name=cast]', fs).value = c.cast || '';
+  $('[name=waterDepth]', fs).value = c.waterDepth ?? '';
+  $('[name=fishDepth]', fs).value = c.fishDepth ?? '';
+  $('[name=setupText]', fs).value = c.setupText || '';
   $('[name=time]', fs).value = c.time || '';
   $('[name=kept]', fs).checked = !!c.kept;
   fs._photo = null; // new photo (Blob) not yet uploaded
@@ -232,6 +236,10 @@ form.onsubmit = async e => {
       length: +$('[name=length]', fs).value || null,
       weight: +$('[name=weight]', fs).value || null,
       bait: $('[name=bait]', fs).value.trim(),
+      cast: $('[name=cast]', fs).value.trim(),
+      waterDepth: +$('[name=waterDepth]', fs).value || null,
+      fishDepth: +$('[name=fishDepth]', fs).value || null,
+      setupText: $('[name=setupText]', fs).value.trim(),
       time: $('[name=time]', fs).value,
       kept: $('[name=kept]', fs).checked,
       photo: fs._photo || null,
