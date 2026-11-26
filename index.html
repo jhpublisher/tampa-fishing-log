@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b4f6c">
+  <title>Tampa Bay Fishing Log</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>Tampa Bay Fishing Log</h1>
+    <select id="station" aria-label="Tide station"></select>
+  </header>
+
+  <main>
+    <!-- TODAY -->
+    <section id="view-today" class="view active">
+      <div class="card" id="today-summary"></div>
+      <div class="card">
+        <h2>Tides</h2>
+        <div id="tide-chart" class="chart"></div>
+        <ul id="tide-list" class="plain"></ul>
+      </div>
+      <div class="card">
+        <h2>Moon &amp; solunar</h2>
+        <div id="solunar"></div>
+      </div>
+      <div class="card">
+        <h2>Best times, next 7 days</h2>
+        <div id="forecast"></div>
+        <p class="muted small">Score blends moving tide, solunar periods, moon phase and dawn/dusk. It learns nothing yet; it's a starting rule of thumb.</p>
+      </div>
+    </section>
+
+    <!-- LOG -->
+    <section id="view-log" class="view">
+      <form id="auth-form" class="card hidden">
+        <h2>Sign in to see your trips</h2>
+        <p class="muted small">Your trips and photos are private and sync across your devices.</p>
+        <label>Email <input type="email" id="auth-email" autocomplete="email" required></label>
+        <label>Password <input type="password" id="auth-password" autocomplete="current-password" minlength="6" required></label>
+        <div class="row end">
+          <button type="button" id="signup-btn">Create account</button>
+          <button type="submit" class="primary">Sign in</button>
+        </div>
+        <p id="auth-msg" class="small"></p>
+      </form>
+      <div id="trips-area" class="hidden">
+        <button class="primary wide" id="new-trip-btn">+ New trip</button>
+        <div id="trip-list"></div>
+        <p class="small muted" style="text-align:center">Signed in as <span id="who"></span> · <button type="button" id="signout-btn">Sign out</button></p>
+      </div>
+    </section>
+
+    <!-- TRIP EDIT -->
+    <section id="view-trip" class="view">
+      <form id="trip-form" class="card">
+        <h2 id="trip-form-title">New trip</h2>
+        <label>Date <input type="date" name="date" required></label>
+        <div class="row">
+          <label>Start <input type="time" name="start"></label>
+          <label>End <input type="time" name="end"></label>
+        </div>
+        <label>Spot name <input name="spot" placeholder="e.g. Fort De Soto north pier"></label>
+        <div class="row">
+          <button type="button" id="gps-btn">Use my location</button>
+          <span class="muted small" id="coords-label">Tap the map to drop a pin</span>
+        </div>
+        <div id="trip-map" class="map"></div>
+        <label>Notes <textarea name="notes" rows="3" placeholder="Water clarity, birds, what you tried..."></textarea></label>
+        <div id="trip-conditions" class="muted small"></div>
+
+        <h3>Catches</h3>
+        <div id="catch-list"></div>
+        <button type="button" id="add-catch-btn">+ Add catch</button>
+
+        <p id="save-msg" class="small bad"></p>
+        <div class="row end">
+          <button type="button" id="delete-trip-btn" class="danger hidden">Delete</button>
+          <button type="button" id="cancel-trip-btn">Cancel</button>
+          <button type="submit" class="primary">Save trip</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- SPECIES -->
+    <section id="view-species" class="view">
+      <div class="card">
+        <h2>Tampa Bay species &amp; FWC limits</h2>
+        <p class="muted small">Rules as of late 2026. Always confirm at <a href="https://myfwc.com/fishing/saltwater/recreational/" target="_blank" rel="noopener">myfwc.com</a> before keeping a fish.</p>
+        <div id="species-table"></div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabs">
+    <button data-view="today" class="active">Today</button>
+    <button data-view="log">My trips</button>
+    <button data-view="species">Species</button>
+  </nav>
+
+  <template id="catch-template">
+    <fieldset class="catch">
+      <div class="row">
+        <label class="grow">Species <select name="species"></select></label>
+        <button type="button" class="remove-catch" aria-label="Remove catch">✕</button>
+      </div>
+      <div class="rule small"></div>
+      <div class="row">
+        <label>Length (in) <input type="number" name="length" step="0.25" min="0"></label>
+        <label>Weight (lb) <input type="number" name="weight" step="0.1" min="0"></label>
+      </div>
+      <div class="row">
+        <label class="grow">Bait / lure <input name="bait"></label>
+        <label>Time <input type="time" name="time"></label>
+      </div>
+      <label class="check"><input type="checkbox" name="kept"> Kept</label>
+      <label>Photo <input type="file" name="photo" accept="image/*" capture="environment"></label>
+      <img class="thumb hidden" alt="Catch photo">
+      <div class="check-result small"></div>
+    </fieldset>
+  </template>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="vendor/suncalc/suncalc.js"></script>
+  <script src="vendor/supabase/supabase.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
