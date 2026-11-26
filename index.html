@@ -3,7 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#123c4a">
+  <meta name="theme-color" content="#2a4f6e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="James Fishing">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
   <title>James's Fishing Log</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,30 +21,7 @@
 </head>
 <body>
   <header class="hero">
-    <svg class="scene" viewBox="0 0 400 170" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
-      <defs>
-        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="var(--sky-top)"/><stop offset=".62" stop-color="var(--sky-mid)"/><stop offset="1" stop-color="var(--sky-low)"/>
-        </linearGradient>
-        <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="var(--sea-top)"/><stop offset="1" stop-color="var(--sea-deep)"/>
-        </linearGradient>
-      </defs>
-      <rect width="400" height="170" fill="url(#sky)"/>
-      <circle cx="300" cy="112" r="26" fill="var(--sun)"/>
-      <!-- Sunshine Skyway-style cable-stayed bridge -->
-      <g fill="none" stroke="var(--bridge)" stroke-width="1.1" opacity=".9">
-        <path d="M150 64 L110 112 M150 64 L120 112 M150 64 L130 112 M150 64 L140 112 M150 64 L160 112 M150 64 L170 112 M150 64 L180 112 M150 64 L190 112"/>
-        <path d="M250 64 L210 112 M250 64 L220 112 M250 64 L230 112 M250 64 L240 112 M250 64 L260 112 M250 64 L270 112 M250 64 L280 112 M250 64 L290 112"/>
-      </g>
-      <g fill="var(--bridge)">
-        <rect x="147" y="60" width="6" height="64"/><rect x="247" y="60" width="6" height="64"/>
-        <path d="M0 121 Q100 118 200 109 Q300 118 400 121 L400 124 Q300 121 200 112 Q100 121 0 124Z"/>
-      </g>
-      <rect y="124" width="400" height="46" fill="url(#sea)"/>
-      <path d="M0 132 q10 -3 20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0" stroke="var(--glint)" stroke-width="1.2" fill="none" opacity=".55"/>
-      <path d="M262 140 h76 M276 147 h48 M288 154 h24" stroke="var(--sun)" stroke-width="2" opacity=".55"/>
-    </svg>
+    <div class="hero-photo" role="img" aria-label="Sunshine Skyway Bridge at sunset over Tampa Bay"></div>
     <div class="hero-text">
       <p class="eyebrow">Tampa Bay · Gulf Coast</p>
       <h1>James's <span>Fishing Log</span></h1>
@@ -69,6 +53,9 @@
 
     <!-- LOG -->
     <section id="view-log" class="view">
+      <figure class="banner banner-catch">
+        <figcaption><span class="eyebrow">My trips</span><strong>Every fish tells you something.</strong></figcaption>
+      </figure>
       <form id="auth-form" class="card hidden">
         <h2>Welcome back, James</h2>
         <p class="muted small">Sign in to see your trips. They’re private and sync across your phone and computer.</p>
@@ -146,11 +133,18 @@
 
     <!-- SPECIES -->
     <section id="view-species" class="view">
+      <figure class="banner banner-pier">
+        <figcaption><span class="eyebrow">Know before you keep</span><strong>Tampa Bay species</strong></figcaption>
+      </figure>
       <div class="card">
         <h2>Tampa Bay species &amp; FWC limits</h2>
         <p class="muted small">Rules as of late 2026. Always confirm at <a href="https://myfwc.com/fishing/saltwater/recreational/" target="_blank" rel="noopener">myfwc.com</a> before keeping a fish.</p>
         <div id="species-table"></div>
       </div>
+      <p class="credits small muted">Photos from Wikimedia Commons:
+        Sunshine Skyway at sunset by <a href="https://commons.wikimedia.org/wiki/File:Bridge_Ship_2458.jpg" target="_blank" rel="noopener">Gillfoto</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a> ·
+        Red drum catch by <a href="https://commons.wikimedia.org/wiki/File:Red_Drum_Fish.jpg" target="_blank" rel="noopener">Steve Hillebrand, USFWS</a>, public domain ·
+        Fort De Soto bay pier by <a href="https://commons.wikimedia.org/wiki/File:Fort_Desoto_Bay_Fishing_Pier.jpg" target="_blank" rel="noopener">Myrtledawg7</a>, CC0.</p>
     </section>
   </main>
 
@@ -177,7 +171,7 @@
         <label>Time <input type="time" name="time"></label>
       </div>
       <label class="check"><input type="checkbox" name="kept"> Kept</label>
-      <label>Photo <input type="file" name="photo" accept="image/*" capture="environment"></label>
+      <label>Photo <input type="file" name="photo" accept="image/*"></label>
       <img class="thumb hidden" alt="Catch photo">
       <div class="check-result small"></div>
     </fieldset>
