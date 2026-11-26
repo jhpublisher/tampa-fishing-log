@@ -3,6 +3,7 @@ import { moonInfo, solunarDay, forecast } from './solunar.js';
 import { SPECIES, byId, ruleText, checkKeep } from './species.js';
 import * as store from './store.js';
 import { readExif } from './exif.js';
+import { pastWaterTemp } from './conditions.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -260,7 +261,9 @@ async function conditionsFor(trip) {
     const h = heightAt(hilo, when), f = flowAt(hilo, when);
     if (h != null) tide = `Tide ${h.toFixed(1)} ft ${f.dir} (${st.name})`;
   } catch { /* offline: skip tide */ }
-  return { text: [moon.icon + ' ' + moon.name, tide].filter(Boolean).join(' · '), moonPhase: moon.phase, station: st.id };
+  const wt = when <= new Date() ? await pastWaterTemp(trip.lat ?? st.lat, trip.lng ?? st.lng, when) : null;
+  const water = wt != null ? `Water ${Math.round(wt)}°F` : '';
+  return { text: [moon.icon + ' ' + moon.name, tide, water].filter(Boolean).join(' · '), moonPhase: moon.phase, station: st.id, waterTemp: wt };
 }
 
 form.onsubmit = async e => {
@@ -282,7 +285,7 @@ form.onsubmit = async e => {
     updated: new Date().toISOString(),
   };
   const c = await conditionsFor(trip);
-  trip.conditions = c.text; trip.moonPhase = c.moonPhase; trip.station = c.station;
+  trip.conditions = c.text; trip.moonPhase = c.moonPhase; trip.station = c.station; trip.waterTemp = c.waterTemp;
   const btn = $('button[type=submit]', form); btn.disabled = true; btn.textContent = 'Saving…';
   try { await store.saveTrip(trip); show('log'); }
   catch (err) { $('#save-msg').textContent = err.message; }

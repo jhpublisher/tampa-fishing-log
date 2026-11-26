@@ -105,6 +105,48 @@
       </form>
     </section>
 
+    <!-- PLAN -->
+    <section id="view-plan" class="view">
+      <form id="plan-what" class="card">
+        <h2>What should I target?</h2>
+        <p class="muted small">Pick a spot and time. Species are scored on water temp, season, habitat, tide, light, wind and your own catches.</p>
+        <div class="row">
+          <label>Date <input type="date" id="plan-date" required></label>
+          <label>Time <input type="time" id="plan-time" required></label>
+        </div>
+        <label>Spot <select id="plan-spot"></select></label>
+        <div class="row end">
+          <button type="button" id="plan-near">Nearest to me</button>
+          <button type="submit" class="primary">Show species</button>
+        </div>
+        <div id="plan-what-out"></div>
+      </form>
+      <form id="plan-where" class="card">
+        <h2>Where and when for…</h2>
+        <p class="muted small">Pick a species to get the best spots and 2-hour windows for the next 7 days.</p>
+        <label>Species <select id="plan-species"></select></label>
+        <div class="row end"><button type="submit" class="primary">Find spots</button></div>
+        <div id="plan-where-out"></div>
+      </form>
+      <form id="recent" class="card">
+        <h2>Recent catches &amp; sightings</h2>
+        <p class="muted small">What people have actually seen around Tampa Bay lately (iNaturalist), plus this week's FWC red tide samples. Recent sightings near a spot also nudge the scores above.</p>
+        <div class="row">
+          <label>Species <select id="recent-species"></select></label>
+          <label>Last <select id="recent-days"><option value="30">30 days</option><option value="90">90 days</option></select></label>
+        </div>
+        <div class="row end"><button type="submit" class="primary">Show map</button></div>
+        <div id="recent-map" class="map" hidden></div>
+        <div id="recent-out"></div>
+      </form>
+      <div class="card">
+        <h2>Local fishing reports</h2>
+        <p class="muted small">The latest from local captains and shops. Opens their site.</p>
+        <ul class="plain small reports" id="reports-list"></ul>
+      </div>
+      <p class="muted small">Rules of thumb, not guarantees. They get better as you log more trips.</p>
+    </section>
+
     <!-- SPECIES -->
     <section id="view-species" class="view">
       <figure class="banner banner-pier">
@@ -125,6 +167,7 @@
   <nav class="tabs">
     <button data-view="today" class="active"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 15c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2M2 20c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2"/><circle cx="12" cy="7" r="3"/></svg>Today</button>
     <button data-view="log"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12c3-4.5 9-6 14-2l4-3v10l-4-3c-5 4-11 2.5-14-2z"/><circle cx="8" cy="11.5" r=".9" fill="currentColor"/></svg>My trips</button>
+    <button data-view="plan"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>Plan</button>
     <button data-view="species"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3v9a4 4 0 1 1-8 0"/><path d="M6 12l-2-2"/><circle cx="14" cy="3" r="1"/></svg>Species</button>
   </nav>
 
@@ -154,5 +197,6 @@
   <script src="vendor/suncalc/suncalc.js"></script>
   <script src="vendor/supabase/supabase.js"></script>
   <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/plan.js"></script>
 </body>
 </html>
