@@ -2,7 +2,7 @@ import { getHiLo, heightAt, flowAt, nearestStation } from './tides.js';
 import { moonInfo } from './solunar.js';
 import * as home from './home.js';
 import { SPECIES, byId, ruleText, checkKeep, isOpen, RULES_AS_OF } from './species.js';
-import { GUIDE } from './guide.js';
+import { GUIDE, lookAlikes } from './guide.js';
 import * as license from './license.js';
 import * as store from './store.js';
 import { readExif } from './exif.js';
@@ -21,6 +21,7 @@ function show(view) {
   $$('.view').forEach(v => v.classList.toggle('active', v.id === `view-${view}`));
   $$('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.view === view));
   document.body.dataset.view = view;
+  const spb = document.getElementById('sp-back'); if (spb) spb.hidden = true;
   window.scrollTo(0, 0);
   if (view === 'log' && store.currentUser()) renderTrips();
 }
@@ -214,12 +215,25 @@ function statusChip(sp) {
   return isOpen(sp) ? '<span class="status open">Open now</span>' : '<span class="status closed">Closed now</span>';
 }
 function speciesCard(sp) {
-  const g = GUIDE[sp.id] || { id: [], photos: [] };
+  const g = GUIDE[sp.id] || { id: [], photos: [], marks: [] };
   const fl = sp.fl ? ' fork length' : ' total length';
   const size = sp.cr ? 'None. Release every tarpon.' : sp.min && sp.max ? `${sp.min}–${sp.max}"${fl} (slot)` : sp.min ? `At least ${sp.min}"${fl}` : '—';
   const bag = sp.cr ? '0 (release)' : sp.bag ? `${sp.bag} per person per day` : sp.unreg ? '2 fish or 100 lb' : '—';
-  const photos = g.photos.length ? `<div class="sp-photos${g.photos.length > 1 ? ' two' : ''}">${g.photos.map(p => `<img src="${p.src}" alt="${esc(sp.name)}" loading="lazy">`).join('')}</div>` : '';
-  return `<article class="card sp-card" data-q="${esc((sp.name + ' ' + (g.sci || '')).toLowerCase())}">
+  const marks = g.marks || [];
+  // First photo keeps its real shape so the numbered pins land on the right spot.
+  const slide = (p, i) => `<figure class="sp-slide"><a href="${p.src}" target="_blank" rel="noopener" class="sp-pic" style="aspect-ratio:${p.w} / ${p.h};width:min(100%, ${Math.round(340 * p.w / p.h)}px)">
+      <img src="${p.src}" alt="${esc(sp.name)}, photo ${i + 1}" loading="lazy">
+      ${i === 0 ? marks.map(([x, y], n) => `<span class="pin" style="left:${x}%;top:${y}%">${n + 1}</span>`).join('') : ''}</a></figure>`;
+  const photos = g.photos.length ? `<div class="sp-photos">${g.photos.map(slide).join('')}</div>
+    ${g.photos.length > 1 ? `<div class="sp-swipe small">Swipe for ${g.photos.length - 1} more photo${g.photos.length > 2 ? 's' : ''} · tap to enlarge</div>` : '<div class="sp-swipe small">Tap photo to enlarge</div>'}` : '';
+  const looks = lookAlikes(sp.id);
+  const lookHtml = looks.length ? `<h4>Easy to mix up with</h4>${looks.map(l => {
+    const o = byId(l.id), og = GUIDE[l.id];
+    return `<a class="look" href="#sp-${l.id}" data-jump="${l.id}" data-from="${sp.id}">
+      ${og?.photos[0] ? `<img src="${og.photos[0].src}" alt="" loading="lazy">` : ''}
+      <span><strong>${esc(o?.name || l.id)} ›</strong><span class="small">${esc(l.tell)}</span></span></a>`;
+  }).join('')}` : '';
+  return `<article class="card sp-card" id="sp-${sp.id}" data-q="${esc((sp.name + ' ' + (g.sci || '')).toLowerCase())}">
     ${photos}
     <div class="sp-head"><div><h3 class="sp-name">${esc(sp.name)}</h3>${g.sci ? `<div class="sci">${esc(g.sci)}</div>` : ''}</div>${statusChip(sp)}</div>
     <dl class="sp-rules">
@@ -228,10 +242,13 @@ function speciesCard(sp) {
       <div><dt>Season</dt><dd>${sp.cr ? 'Year-round, release only' : seasonText(sp)}</dd></div>
     </dl>
     ${sp.note ? `<p class="small sp-note">${esc(sp.note)}</p>` : ''}
-    ${g.id.length ? `<h4>How to tell it apart</h4><ul class="sp-id">${g.id.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
+    ${marks.length || g.id.length ? `<h4>How to tell it apart</h4>
+      ${marks.length ? `<ol class="sp-marks">${marks.map(m => `<li>${esc(m[2])}</li>`).join('')}</ol>` : ''}
+      ${g.id.length ? `<ul class="sp-id">${g.id.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}` : ''}
+    ${lookHtml}
     <div class="sp-foot">
       ${g.fwc ? `<a href="${g.fwc}" target="_blank" rel="noopener">FWC rules ↗</a>` : ''}
-      ${g.photos.length ? `<span class="photo-credit">Photo${g.photos.length > 1 ? 's' : ''}: ${g.photos.map(p => `<a href="${p.page}" target="_blank" rel="noopener">${esc(p.by)}</a> (${esc(p.lic)})`).join(', ')}</span>` : ''}
+      ${g.photos.length ? `<span class="photo-credit">Photo${g.photos.length > 1 ? 's' : ''}: ${g.photos.map(p => `<a href="${p.page}" target="_blank" rel="noopener">${esc(p.by)}</a> (${esc(p.lic)})`).join(', ')}, via iNaturalist</span>` : ''}
     </div>
   </article>`;
 }
@@ -241,6 +258,28 @@ $('#species-search').oninput = e => {
   const q = e.target.value.trim().toLowerCase();
   $$('.sp-card').forEach(c => { c.hidden = !!q && !c.dataset.q.includes(q); });
 };
+// Jump between look-alikes, with a floating button back to the fish you came from.
+const jumpTo = id => {
+  const card = $('#sp-' + id); if (!card) return;
+  $('#species-search').value = ''; $$('.sp-card').forEach(c => { c.hidden = false; });
+  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash');
+};
+const flip = { a: null, b: null };
+const setBack = () => {
+  const bar = $('#sp-back');
+  $('.sp-back-go', bar).textContent = `⇄ Flip to ${(byId(flip.a)?.name || '').replace(/ \(.*\)$/, '')}`;
+  bar.hidden = false;
+};
+$('#species-guide').addEventListener('click', e => {
+  const a = e.target.closest('[data-jump]'); if (!a) return;
+  e.preventDefault();
+  flip.a = a.dataset.from; flip.b = a.dataset.jump;
+  jumpTo(flip.b); setBack();
+});
+$('#sp-back .sp-back-go').onclick = () => { [flip.a, flip.b] = [flip.b, flip.a]; jumpTo(flip.b); setBack(); };
+$('#sp-back .sp-back-x').onclick = () => { $('#sp-back').hidden = true; };
+
 
 
 // ---------- sign in ----------
