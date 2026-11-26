@@ -1,37 +1,45 @@
-// Tampa Bay region recreational rules, compiled 2026-11-26.
-// Seatrout: FWC release (effective 2026-04-01). Others: secondary sources checked against FWC Oct 2026.
+// Tampa Bay region recreational rules, checked against FWC's own regulation pages
+// (myfwc.com/fishing/saltwater/recreational/<species>/) on 2026-11-26.
 // ALWAYS confirm at myfwc.com. Update this file when FWC changes rules.
 // open: list of [startMonth, startDay, endMonth, endDay] ranges (inclusive); null = open all year.
-// min/max in inches (total length unless note says fork length). bag per person per day.
+// min/max in inches; fl: true = fork length, otherwise total length. bag per person per day.
 
 export const RULES_AS_OF = '2026-11-26';
 
 export const SPECIES = [
   { id: 'snook', name: 'Snook', min: 28, max: 33, bag: 1,
     open: [[3, 1, 4, 30], [9, 1, 11, 30]],
-    note: 'Snook permit required to keep. Catch & release OK when closed.' },
+    note: 'Snook permit + license needed to keep. Closed Dec 1-end of Feb and May 1-Aug 31.' },
   { id: 'redfish', name: 'Redfish (red drum)', min: 18, max: 27, bag: 1, open: null,
     note: '2 per boat max.' },
   { id: 'trout', name: 'Spotted seatrout', min: 15, max: 19, bag: 3, open: null,
-    note: 'One fish over 19" allowed per boat (or per person from shore).' },
-  { id: 'sheepshead', name: 'Sheepshead', min: 12, bag: 8, open: null },
+    note: 'One fish over 19" allowed per boat (or per person from shore), counted in the bag.' },
+  { id: 'sheepshead', name: 'Sheepshead', min: 12, bag: 8, open: null,
+    note: '50 per boat per trip in March and April.' },
   { id: 'mangrove', name: 'Mangrove (gray) snapper', min: 10, bag: 5, open: null,
-    note: 'State waters. 12" min in federal waters.' },
+    note: 'State waters. Federal waters: 12" min, 10 bag. Part of 10-snapper aggregate.' },
   { id: 'flounder', name: 'Flounder', min: 14, bag: 5,
-    open: [[12, 1, 10, 14]], note: 'Closed Oct 15 to Nov 30 every year.' },
-  { id: 'spanish', name: 'Spanish mackerel', min: 12, bag: 15, open: null, note: 'Fork length.' },
-  { id: 'king', name: 'King mackerel', min: 24, bag: 3, open: null, note: 'Fork length.' },
-  { id: 'cobia', name: 'Cobia', min: 36, bag: 1, open: null, note: 'Fork length. 2 per boat max.' },
-  { id: 'pompano', name: 'Pompano', min: 11, bag: 6, open: null, note: 'Fork length. Confirm at FWC.' },
-  { id: 'redgrouper', name: 'Red grouper', min: 20, bag: 2, open: null, note: 'Counts toward 4-grouper aggregate.' },
+    open: [[12, 1, 10, 14]], note: 'Closed Oct 15-Nov 30 every year.' },
+  { id: 'blackdrum', name: 'Black drum', min: 14, max: 24, bag: 5, open: null,
+    note: 'One fish over 24" allowed, counted in the bag.' },
+  { id: 'spanish', name: 'Spanish mackerel', min: 12, fl: true, bag: 15, open: null },
+  { id: 'king', name: 'King mackerel', min: 24, fl: true, bag: 3, open: null },
+  { id: 'cobia', name: 'Cobia', min: 36, fl: true, bag: 1, open: null, note: '2 per boat max.' },
+  { id: 'pompano', name: 'Florida pompano', min: 11, fl: true, bag: 6, open: null },
+  { id: 'tripletail', name: 'Tripletail', min: 18, bag: 2, open: null, note: 'Hook and line only.' },
+  { id: 'redgrouper', name: 'Red grouper', min: 20, bag: 2, open: null,
+    note: 'Within 4-grouper aggregate. Federal waters deeper than 20 fathoms closed Feb 1-Mar 31. State Reef Fish Angler designation needed on a private boat.' },
   { id: 'gag', name: 'Gag grouper', min: 24, bag: 2, open: [[9, 1, 9, 30]],
-    note: '2026 season was Sep 1-30. 2027 dates not set yet.' },
-  { id: 'hogfish', name: 'Hogfish', min: 14, bag: 5, open: null, note: 'Fork length.' },
+    note: '2026 Gulf season was Sep 1-30; 2027 dates not set yet. Within 4-grouper aggregate.' },
+  { id: 'hogfish', name: 'Hogfish', min: 14, fl: true, bag: 5, open: null },
   { id: 'tarpon', name: 'Tarpon', bag: 0, open: null, cr: true,
-    note: 'Catch & release only. Keep fish over 40" in the water.' },
-  { id: 'jack', name: 'Jack crevalle', open: null, note: 'Check FWC for current limits.' },
-  { id: 'ladyfish', name: 'Ladyfish', open: null },
-  { id: 'blacktip', name: 'Blacktip shark', open: null, note: 'Shore-based shark permit may apply. Check FWC.' },
+    note: 'Catch & release only. Tarpon over 40" must stay in the water.' },
+  { id: 'jack', name: 'Jack crevalle', open: null, unreg: true,
+    note: 'No species limits. Default: 2 fish or 100 lb per person per day, whichever is more.' },
+  { id: 'ladyfish', name: 'Ladyfish', open: null, unreg: true,
+    note: 'No species limits. Default: 2 fish or 100 lb per person per day, whichever is more.' },
+  { id: 'blacktip', name: 'Blacktip shark', open: null,
+    note: '1 shark per person, 2 per boat. From shore you need the free shore-based shark permit. Check FWC size groups.' },
   { id: 'other', name: 'Other', open: null },
 ];
 
@@ -51,8 +59,9 @@ export function ruleText(sp) {
   const parts = [];
   if (sp.cr) parts.push('Catch & release only');
   else {
-    if (sp.min && sp.max) parts.push(`Slot ${sp.min}-${sp.max}"`);
-    else if (sp.min) parts.push(`Min ${sp.min}"`);
+    const fl = sp.fl ? ' fork length' : '';
+    if (sp.min && sp.max) parts.push(`Slot ${sp.min}-${sp.max}"${fl}`);
+    else if (sp.min) parts.push(`Min ${sp.min}"${fl}`);
     if (sp.bag) parts.push(`Bag ${sp.bag}`);
   }
   if (sp.open) parts.push(isOpen(sp) ? 'Open now' : 'CLOSED now');

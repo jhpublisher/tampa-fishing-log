@@ -1,6 +1,7 @@
 import { STATIONS, loadStations, getHiLo, heightAt, flowAt, nearestStation } from './tides.js';
 import { moonInfo, solunarDay, forecast } from './solunar.js';
-import { SPECIES, byId, ruleText, checkKeep } from './species.js';
+import { SPECIES, byId, ruleText, checkKeep, isOpen, RULES_AS_OF } from './species.js';
+import { GUIDE } from './guide.js';
 import * as store from './store.js';
 import { readExif } from './exif.js';
 import { pastWaterTemp } from './conditions.js';
@@ -314,9 +315,42 @@ form.onsubmit = async e => {
 };
 
 // ---------- species ----------
-$('#species-table').innerHTML = `<table><thead><tr><th>Species</th><th>Rules</th></tr></thead><tbody>
-  ${SPECIES.filter(s => s.id !== 'other').map(s => `<tr><td>${esc(s.name)}</td><td>${esc(ruleText(s))}</td></tr>`).join('')}
-</tbody></table>`;
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const seasonText = sp => sp.open ? 'Open ' + sp.open.map(([m1, d1, m2, d2]) => `${MONTHS[m1 - 1]} ${d1}–${MONTHS[m2 - 1]} ${d2}`).join(' and ') : 'Open all year';
+function statusChip(sp) {
+  if (sp.cr) return '<span class="status cr">Catch &amp; release only</span>';
+  if (sp.unreg) return '<span class="status open">No species limits</span>';
+  return isOpen(sp) ? '<span class="status open">Open now</span>' : '<span class="status closed">Closed now</span>';
+}
+function speciesCard(sp) {
+  const g = GUIDE[sp.id] || { id: [], photos: [] };
+  const fl = sp.fl ? ' fork length' : ' total length';
+  const size = sp.cr ? 'None. Release every tarpon.' : sp.min && sp.max ? `${sp.min}–${sp.max}"${fl} (slot)` : sp.min ? `At least ${sp.min}"${fl}` : '—';
+  const bag = sp.cr ? '0 (release)' : sp.bag ? `${sp.bag} per person per day` : sp.unreg ? '2 fish or 100 lb' : '—';
+  const photos = g.photos.length ? `<div class="sp-photos${g.photos.length > 1 ? ' two' : ''}">${g.photos.map(p => `<img src="${p.src}" alt="${esc(sp.name)}" loading="lazy">`).join('')}</div>` : '';
+  return `<article class="card sp-card" data-q="${esc((sp.name + ' ' + (g.sci || '')).toLowerCase())}">
+    ${photos}
+    <div class="sp-head"><div><h3 class="sp-name">${esc(sp.name)}</h3>${g.sci ? `<div class="sci">${esc(g.sci)}</div>` : ''}</div>${statusChip(sp)}</div>
+    <dl class="sp-rules">
+      <div><dt>Size</dt><dd>${size}</dd></div>
+      <div><dt>Bag</dt><dd>${bag}</dd></div>
+      <div><dt>Season</dt><dd>${sp.cr ? 'Year-round, release only' : seasonText(sp)}</dd></div>
+    </dl>
+    ${sp.note ? `<p class="small sp-note">${esc(sp.note)}</p>` : ''}
+    ${g.id.length ? `<h4>How to tell it apart</h4><ul class="sp-id">${g.id.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
+    <div class="sp-foot">
+      ${g.fwc ? `<a href="${g.fwc}" target="_blank" rel="noopener">FWC rules ↗</a>` : ''}
+      ${g.photos.length ? `<span class="photo-credit">Photo${g.photos.length > 1 ? 's' : ''}: ${g.photos.map(p => `<a href="${p.page}" target="_blank" rel="noopener">${esc(p.by)}</a> (${esc(p.lic)})`).join(', ')}</span>` : ''}
+    </div>
+  </article>`;
+}
+$('#rules-date').textContent = new Date(RULES_AS_OF + 'T12:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+$('#species-guide').innerHTML = SPECIES.filter(s => s.id !== 'other').map(speciesCard).join('');
+$('#species-search').oninput = e => {
+  const q = e.target.value.trim().toLowerCase();
+  $$('.sp-card').forEach(c => { c.hidden = !!q && !c.dataset.q.includes(q); });
+};
+
 
 // ---------- sign in ----------
 const authMsg = (m, cls = '') => { $('#auth-msg').textContent = m; $('#auth-msg').className = `small ${cls}`; };
