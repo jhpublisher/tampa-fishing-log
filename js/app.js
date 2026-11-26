@@ -2,6 +2,7 @@ import { STATIONS, loadStations, getHiLo, heightAt, flowAt, nearestStation } fro
 import { moonInfo, solunarDay, forecast } from './solunar.js';
 import { SPECIES, byId, ruleText, checkKeep, isOpen, RULES_AS_OF } from './species.js';
 import { GUIDE } from './guide.js';
+import * as license from './license.js';
 import * as store from './store.js';
 import { readExif } from './exif.js';
 import { pastWaterTemp } from './conditions.js';
@@ -369,6 +370,7 @@ $('#signup-btn').onclick = async () => {
 };
 $('#signout-btn').onclick = () => store.signOut();
 store.watchAuth(u => {
+  license.onAuth(u);
   $('#auth-form').classList.toggle('hidden', !!u);
   $('#trips-area').classList.toggle('hidden', !u);
   $('#who').textContent = u?.email || '';

@@ -100,3 +100,36 @@ export async function shrinkPhoto(file, max = 1600) {
   c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
   return new Promise(r => c.toBlob(r, 'image/jpeg', 0.82));
 }
+
+// Fishing license: details on the user's account, photos in the private bucket
+// at <user id>/license/<side>.jpg (covered by the same per-user storage policy).
+export const getLicense = () => user?.user_metadata?.license || null;
+
+export async function saveLicense(details, photos = {}) {
+  const uid = user?.id; if (!uid) throw new Error('Please sign in first.');
+  const lic = { ...(getLicense() || {}), ...details };
+  for (const side of ['front', 'back']) {
+    const blob = photos[side];
+    if (blob instanceof Blob) {
+      const path = `${uid}/license/${side}.jpg`;
+      const { error } = await sb.storage.from(PHOTO_BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: true });
+      fail(error, 'Uploading license photo');
+      lic[side + 'Path'] = path;
+      lic[side + 'Ver'] = Date.now(); // so the new photo shows instead of a cached one
+    }
+  }
+  const { data, error } = await sb.auth.updateUser({ data: { license: lic } });
+  fail(error, 'Saving license');
+  if (data?.user) user = data.user;
+  return lic;
+}
+
+export async function licensePhotoUrls(lic) {
+  const paths = ['front', 'back'].map(s => lic?.[s + 'Path']).filter(Boolean);
+  if (!paths.length) return {};
+  const { data, error } = await sb.storage.from(PHOTO_BUCKET).createSignedUrls(paths, 3600);
+  fail(error, 'Loading license photos');
+  const out = {};
+  for (const d of data) if (d.signedUrl) out[d.path.endsWith('front.jpg') ? 'front' : 'back'] = d.signedUrl;
+  return out;
+}
