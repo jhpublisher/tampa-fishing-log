@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600&display=swap">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=17">
+  <link rel="stylesheet" href="css/style.css?v=18">
 </head>
 <body data-view="today">
   <header class="hero">
@@ -218,10 +218,7 @@
         <label>Length (in) <input type="number" name="length" step="0.25" min="0"></label>
         <label>Weight (lb) <input type="number" name="weight" step="0.1" min="0"></label>
       </div>
-      <div class="row">
-        <label class="grow">Bait / lure <input name="bait"></label>
-        <label>Time <input type="time" name="time"></label>
-      </div>
+      <label>Time caught <input type="time" name="time"></label>
       <label class="check"><input type="checkbox" name="kept"> Kept</label>
       <div class="check-result small"></div>
       <label>Where I cast <input name="cast" placeholder="e.g. dock pilings, grass edge, oyster bar, channel drop-off"></label>
@@ -229,11 +226,15 @@
         <label>Water depth (ft) <input type="number" name="waterDepth" step="0.5" min="0" inputmode="decimal"></label>
         <label>Depth fished (ft) <input type="number" name="fishDepth" step="0.5" min="0" inputmode="decimal"></label>
       </div>
-      <div class="pics">
-        <label class="pic">Fish photo <input type="file" name="photo" accept="image/*"><img class="thumb hidden" alt="Catch photo"></label>
-        <label class="pic">Setup photo <span class="small muted">lure, bait, rig</span><input type="file" name="setup" accept="image/*"><img class="setup-thumb thumb hidden" alt="Setup photo"></label>
+      <label class="pic-btn">📷 Fish photo<input type="file" name="photo" accept="image/*"></label>
+      <img class="thumb hidden" alt="Catch photo">
+      <div class="setup-box">
+        <div class="setup-title">🎣 My setup <span>what I was fishing with</span></div>
+        <label>Bait / lure <input name="bait" placeholder="e.g. live shrimp, white paddle tail"></label>
+        <label>Setup details <textarea name="setupText" rows="3" placeholder="Rod, reel, line, leader, hook, weight, how it was rigged"></textarea></label>
+        <label class="pic-btn">📷 Setup photo (lure, bait, rig)<input type="file" name="setup" accept="image/*"></label>
+        <img class="setup-thumb thumb hidden" alt="Setup photo">
       </div>
-      <label>My setup <textarea name="setupText" rows="3" placeholder="Rod, reel, line, leader, hook, weight, lure or bait, how it was rigged"></textarea></label>
       <div class="catch-voice"></div>
       <div class="cond small"></div>
     </fieldset>
@@ -242,7 +243,7 @@
   <script src="vendor/leaflet/leaflet.js"></script>
   <script src="vendor/suncalc/suncalc.js"></script>
   <script src="vendor/supabase/supabase.js"></script>
-  <script type="module" src="js/app.js?v=17"></script>
-  <script type="module" src="js/plan.js?v=17"></script>
+  <script type="module" src="js/app.js?v=18"></script>
+  <script type="module" src="js/plan.js?v=18"></script>
 </body>
 </html>
