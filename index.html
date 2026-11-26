@@ -19,16 +19,16 @@
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body data-view="today">
   <header class="hero">
     <div class="hero-photo" role="img" aria-label="Sunshine Skyway Bridge at sunset over Tampa Bay"></div>
     <div class="hero-text">
       <p class="eyebrow">Tampa Bay · Gulf Coast</p>
       <h1>James's <span>Fishing Log</span></h1>
-      <div class="station-pick">
-        <label for="station">Tide station</label>
-        <select id="station"></select>
-        <button type="button" id="fav-btn" class="fav-btn" aria-pressed="false" aria-label="Add this station to favorites" title="Favorite this station">☆</button>
+      <div class="hero-today">
+        <p class="hello"><span id="hello">Hello, James</span> · <span id="here-date"></span></p>
+        <button type="button" id="here-btn" class="here-btn" aria-label="Change spot"><span aria-hidden="true">📍</span><span id="here-name">Fort De Soto</span><span class="caret" aria-hidden="true">▾</span></button>
+        <div id="now" class="now" aria-live="polite"><div class="dial" style="--v:0"><b>…</b><small>bite</small></div><div class="now-text"><div class="now-head">Checking the water…</div></div></div>
       </div>
     </div>
   </header>
@@ -36,20 +36,29 @@
   <main>
     <!-- TODAY -->
     <section id="view-today" class="view active">
-      <div class="card" id="today-summary"></div>
+      <div id="tiles" class="tiles"></div>
+
       <div class="card">
-        <h2>Tides</h2>
+        <div class="card-head"><h2>My spots</h2><button type="button" id="spot-add" class="link-btn">＋ Add</button></div>
+        <p id="spots-hint" class="muted small">Popular spots to start. Tap ☆ to keep one here; tap a card to see its conditions.</p>
+        <div id="my-spots" class="spot-rail"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>What's biting</h2><span class="muted small">here, right now</span></div>
+        <div id="biting"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Tide today</h2><span class="muted small" id="tide-where"></span></div>
         <div id="tide-chart" class="chart"></div>
-        <ul id="tide-list" class="plain"></ul>
+        <details class="tide-more"><summary class="small">Tide &amp; feeding times</summary><ul id="tide-list" class="plain small"></ul></details>
       </div>
+
       <div class="card">
-        <h2>Moon &amp; feeding times</h2>
-        <div id="solunar"></div>
-      </div>
-      <div class="card">
-        <h2>Best times, next 7 days</h2>
-        <div id="forecast"></div>
-        <p class="muted small">Score blends moving tide, solunar periods, moon phase and dawn/dusk. It learns nothing yet; it's a starting rule of thumb.</p>
+        <div class="card-head"><h2>This week</h2><span class="muted small">bite score by day</span></div>
+        <div id="week"></div>
+        <p class="muted small">Score blends moving tide, solunar feeding times, moon phase and dawn/dusk. A rule of thumb, not a promise.</p>
       </div>
     </section>
 
@@ -176,6 +185,14 @@
     <button data-view="plan"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>Plan</button>
     <button data-view="species"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3v9a4 4 0 1 1-8 0"/><path d="M6 12l-2-2"/><circle cx="14" cy="3" r="1"/></svg>Species</button>
   </nav>
+
+  <dialog id="spot-sheet" class="sheet" aria-labelledby="sheet-title">
+    <div class="sheet-head"><h2 id="sheet-title">Pick a spot</h2><button type="button" id="sheet-close" class="link-btn" aria-label="Close">Done</button></div>
+    <input type="search" id="sheet-q" placeholder="Search spots and tide stations" autocomplete="off" aria-label="Search spots">
+    <button type="button" id="sheet-near" class="wide">📍 Nearest to me</button>
+    <div id="sheet-list"></div>
+  </dialog>
+  <div id="toast" class="toast" role="status"></div>
 
   <template id="catch-template">
     <fieldset class="catch">

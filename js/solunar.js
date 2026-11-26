@@ -36,7 +36,7 @@ export function solunarDay(date, lat, lng) {
 }
 
 // Score one moment 0..100.
-function scoreAt(t, day, moon, hilo) {
+export function scoreAt(t, day, moon, hilo) {
   let s = 0;
   for (const p of day.periods) {
     const dist = Math.abs(t - p.center) / H;
@@ -51,14 +51,15 @@ function scoreAt(t, day, moon, hilo) {
 }
 
 // 7-day forecast: each day gets an overall score and its two best 2-hour windows.
-export function forecast(start, days, lat, lng, hilo) {
+// from/to: only consider windows starting between these hours (default: all day).
+export function forecast(start, days, lat, lng, hilo, { from = 0, to = 24 } = {}) {
   const out = [];
   for (let i = 0; i < days; i++) {
     const d = new Date(start); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + i);
     const day = solunarDay(d, lat, lng);
     const moon = moonInfo(new Date(+d + 12 * H));
     const hours = [];
-    for (let h = 0; h < 24; h += 0.5) {
+    for (let h = from; h < Math.min(24, to + 2); h += 0.5) {
       const t = new Date(+d + h * H);
       hours.push({ t, s: scoreAt(t, day, moon, hilo) });
     }
