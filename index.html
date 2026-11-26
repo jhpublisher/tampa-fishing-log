@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600&display=swap">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=19">
+  <link rel="stylesheet" href="css/style.css?v=20">
 </head>
 <body data-view="today">
   <header class="hero">
@@ -140,8 +140,10 @@
           <label>Date <input type="date" id="plan-date" required></label>
           <label>Time <input type="time" id="plan-time" required></label>
         </div>
-        <div class="ps"><label for="plan-q">Find a spot</label><input type="search" id="plan-q" placeholder="Search your spots, listed spots or any place" autocomplete="off"><ul class="ps-list" id="plan-q-list"></ul></div>
-        <label>Spot <select id="plan-spot"></select></label>
+        <div class="ps combo" id="plan-combo"><label for="plan-q">Spot</label>
+          <div class="combo-box"><input id="plan-q" placeholder="Tap to pick, or type any place" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="plan-q-list"><button type="button" class="combo-arrow" aria-label="Show all spots">▾</button></div>
+          <ul class="ps-list" id="plan-q-list" role="listbox"></ul></div>
+        <select id="plan-spot" hidden aria-hidden="true"></select>
         <div class="row end">
           <button type="button" id="plan-near">Nearest to me</button>
           <button type="submit" class="primary">Show species</button>
@@ -250,7 +252,7 @@
   <script src="vendor/leaflet/leaflet.js"></script>
   <script src="vendor/suncalc/suncalc.js"></script>
   <script src="vendor/supabase/supabase.js"></script>
-  <script type="module" src="js/app.js?v=19"></script>
-  <script type="module" src="js/plan.js?v=19"></script>
+  <script type="module" src="js/app.js?v=20"></script>
+  <script type="module" src="js/plan.js?v=20"></script>
 </body>
 </html>

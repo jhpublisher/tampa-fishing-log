@@ -139,6 +139,7 @@ export function findWindows(id, start, days, inputs, wind, history, extra = {}, 
   const all = [];
   for (const spot of SPOTS) {
     const inp = inputs.get(spot.id);
+    if (!inp) continue; // e.g. OpenStreetMap extras
     for (let d = 0; d < days; d++) {
       const d0 = new Date(start); d0.setHours(0, 0, 0, 0); d0.setDate(d0.getDate() + d);
       const day = solunarDay(d0, spot.lat, spot.lng);
