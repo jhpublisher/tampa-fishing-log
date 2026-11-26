@@ -29,6 +29,14 @@ export async function setFavPlaces(keys) {
   if (!error && data?.user) user = data.user;
 }
 
+// James's own spots: [{id, name, lat, lng, type}] on the account.
+export const getMySpots = () => user?.user_metadata?.mySpots || [];
+export async function saveMySpots(list) {
+  if (!user) return;
+  const { data, error } = await sb.auth.updateUser({ data: { mySpots: list } });
+  if (!error && data?.user) user = data.user;
+}
+
 const fail = (error, what) => { if (error) throw new Error(`${what}: ${error.message}`); };
 
 // Every stored file a trip points at: catch photo, setup photo, voice notes (catch and trip).

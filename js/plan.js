@@ -1,6 +1,8 @@
 // "Plan" tab: what to target at a spot and time, and where/when to go for a species.
 import { getHiLo, nearestStation, loadStations } from './tides.js';
 import { SPOTS, spotById, nearestSpot } from './spots.js';
+import { attachSearch } from './placesearch.js';
+import { addSpotAt, place } from './home.js';
 import { estimateWaterTemp, latestWaterTemp, typicalTemp, windForecast, windAt } from './conditions.js';
 import { TARGETS, makeContext, rankSpecies, findWindows, catchHistory } from './recommend.js';
 import * as store from './store.js';
@@ -25,7 +27,23 @@ const legal = r => r.cr ? '<span class="tag">Catch &amp; release</span>' : r.clo
 
 // ---------- form setup ----------
 const spotSel = $('#plan-spot'), spSel = $('#plan-species');
-spotSel.innerHTML = SPOTS.map(s => `<option value="${s.id}">${esc(s.name)}${s.boat ? ' (boat)' : ''}</option>`).join('');
+const fillSpots = () => {
+  const keep = spotSel.value;
+  spotSel.innerHTML = SPOTS.map(s => `<option value="${s.id}">${esc(s.name)}${s.custom ? ' (mine)' : s.boat ? ' (boat)' : ''}</option>`).join('');
+  if (SPOTS.some(s => s.id === keep)) spotSel.value = keep;
+};
+fillSpots();
+document.addEventListener('spots-changed', fillSpots);
+// Search: a spot fills the picker; a tide station or map place opens the map to save it as your spot.
+attachSearch($('#plan-q'), $('#plan-q-list'), r => {
+  if (r.kind === 'spot') { spotSel.value = r.key.slice(5); $('#plan-q').value = ''; return; }
+  const p = r.kind === 'osm' ? r : place(r.key);
+  if (p) addSpotAt(p.lat, p.lng, r.name);
+});
+document.addEventListener('spot-added', e => {
+  if (!document.getElementById('view-plan').classList.contains('active')) return;
+  fillSpots(); spotSel.value = e.detail; $('#plan-q').value = '';
+});
 spSel.innerHTML = TARGETS.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
 const now0 = new Date();
 $('#plan-date').value = `${now0.getFullYear()}-${pad(now0.getMonth() + 1)}-${pad(now0.getDate())}`;

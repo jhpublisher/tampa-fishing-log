@@ -184,6 +184,31 @@ body[data-view="today"] .hero h1 { margin-bottom: clamp(200px, 58vw, 300px); } /
 .pick-list li.active .pick-row { color: var(--coral); }
 .pick-list .star { position: static; }
 .pick-row { flex: 1; text-align: left; border: 0; border-radius: 0; background: none; padding: 10px 0; font-weight: 500; }
+.here-map { margin-left: 6px; }
+.sheet-actions { margin: 10px 0 4px; } .sheet-actions button { flex: 1; }
+.row-map { flex: none; width: 44px; height: 44px; min-height: 44px; padding: 0; border: 0; background: none; font-size: 1.15rem; }
+.map-sheet #spot-map { height: min(45vh, 400px); margin: 8px 0 10px; }
+.map-pick { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.map-pick strong { font: 400 1.1rem var(--display); color: var(--gulf); }
+@media (prefers-color-scheme: dark) { .map-pick strong { color: var(--flats); } }
+.map-pick .star { position: static; flex: none; }
+.map-btns { margin-top: 10px; } .map-btns > * { flex: 1; }
+a.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 16px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font-weight: 600; text-decoration: none; }
+.seg { display: flex; gap: 6px; border: 0; padding: 0; margin: 6px 0; }
+.seg label { flex: 1; margin: 0; }
+.seg input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.seg span { display: grid; place-items: center; min-height: 44px; border: 1px solid var(--line); border-radius: 999px; background: var(--sand); color: var(--ink); text-transform: none; letter-spacing: 0; font: 600 .95rem var(--body); }
+.seg input:checked + span { background: var(--flats); border-color: var(--flats); color: #fff; }
+.seg input:focus-visible + span { outline: 2px solid var(--flats); outline-offset: 1px; }
+.ps { position: relative; margin: 6px 0; }
+.ps label { margin-bottom: 0; }
+.ps-list { list-style: none; margin: 4px 0 0; padding: 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); max-height: 300px; overflow-y: auto; }
+.ps-list[hidden] { display: none; }
+.ps-list button { display: grid; width: 100%; text-align: left; gap: 1px; padding: 8px 10px; border: 0; border-radius: 8px; background: none; font-weight: 500; }
+.ps-list button:active, .ps-list button:hover { background: var(--sand); }
+.ps-list button span { font-size: .82rem; color: var(--muted); }
+.ps-note { padding: 6px 10px; }
+.add-tag { flex: none; padding: 0 8px; color: var(--flats); font-weight: 700; }
 .toast { position: fixed; left: 50%; bottom: calc(86px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
   background: var(--gulf); color: #fff8ec; padding: 10px 16px; border-radius: 999px; font-weight: 600; font-size: .92rem; transition: .2s ease; z-index: 1100; white-space: nowrap; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }

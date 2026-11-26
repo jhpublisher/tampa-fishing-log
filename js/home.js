@@ -2,12 +2,13 @@
 // starred spots with their tides, what's biting, today's tide curve and the week ahead.
 import { STATIONS, loadStations, getHiLo, heightAt, flowAt, nearestStation } from './tides.js';
 import { moonInfo, solunarDay, forecast, scoreAt } from './solunar.js';
-import { SPOTS, nearestSpot, km } from './spots.js';
+import { SPOTS, nearestSpot, km, setMySpots, mySpots, SPOT_TYPES } from './spots.js';
 import { latestWaterTemp, windForecast, windAt } from './conditions.js';
 import { makeContext, rankSpecies } from './recommend.js';
 import { recentSightings, redTideSamples, redTideAt } from './sightings.js';
 import { GUIDE } from './guide.js';
 import * as store from './store.js';
+import { attachSearch, osmSearch } from './placesearch.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -27,7 +28,7 @@ export function place(key) {
   const [kind, id] = String(key).split(':');
   if (kind === 'spot') {
     const s = SPOTS.find(x => x.id === id); if (!s) return null;
-    return { key, name: s.name, short: s.name.split(/ [&(/]/)[0], lat: s.lat, lng: s.lng, tags: s.tags, boat: s.boat, station: nearestStation(s.lat, s.lng) };
+    return { key, name: s.name, short: s.custom ? s.name : s.name.split(/ [&(/]/)[0], lat: s.lat, lng: s.lng, tags: s.tags, boat: s.boat, custom: s.custom, type: s.type, station: nearestStation(s.lat, s.lng) };
   }
   const st = STATIONS.find(x => x.id === id); if (!st) return null;
   const near = nearestSpot(st.lat, st.lng);
@@ -49,6 +50,10 @@ export function toggleFav(key) {
 }
 // Called on sign-in: merge account favorites with this phone's.
 export function syncFavs() {
+  // own spots: keep every spot from the account and this phone (by id)
+  const mine = mySpots(), theirs = store.getMySpots();
+  const all = [...theirs, ...mine.filter(m => !theirs.some(t => t.id === m.id))];
+  if (all.length !== mine.length || all.length !== theirs.length) { setMySpots(all); store.saveMySpots(mySpots()).catch(() => { }); }
   const remote = store.getFavPlaces();
   const merged = [...new Set([...remote, ...favs])];
   const changed = merged.length !== remote.length || merged.length !== favs.length;
@@ -268,22 +273,156 @@ function renderSheet() {
   const row = key => {
     const p = place(key); if (!p || (q && !p.name.toLowerCase().includes(q))) return '';
     const on = favs.includes(key);
-    return `<li class="${key === active ? 'active' : ''}"><button type="button" class="pick-row" data-key="${esc(key)}">${esc(p.name)}${p.boat ? ' <span class="muted small">(boat)</span>' : ''}</button>
+    return `<li class="${key === active ? 'active' : ''}"><button type="button" class="pick-row" data-key="${esc(key)}">${esc(p.name)}${p.custom ? ' <span class="muted small">(mine)</span>' : p.boat ? ' <span class="muted small">(boat)</span>' : ''}</button>
+      <button type="button" class="row-map" data-map="${esc(key)}" aria-label="Show ${esc(p.name)} on a map">🗺</button>
       <button type="button" class="star ${on ? 'on' : ''}" data-star="${esc(key)}" aria-pressed="${on}" aria-label="${on ? 'Remove from' : 'Add to'} My spots">${on ? '★' : '☆'}</button></li>`;
   };
   const group = (title, keys) => { const h = keys.map(row).join(''); return h ? `<h3>${title}</h3><ul class="pick-list">${h}</ul>` : ''; };
   $('#sheet-list').innerHTML = (favs.length ? group('My spots', favs) : '')
     + group('Fishing spots', SPOTS.map(s => 'spot:' + s.id).filter(k => !favs.includes(k)))
     + group('NOAA tide stations', STATIONS.map(s => 'sta:' + s.id).filter(k => !favs.includes(k)))
-    || '<p class="muted">No matches.</p>';
+    || `<p class="muted">${q.length >= 3 ? 'Searching places…' : 'No matches.'}</p>`;
   $$('.pick-row', sheet).forEach(b => b.onclick = () => choose(b.dataset.key));
+  sheetPlaces(q);
+  $$('[data-map]', sheet).forEach(b => b.onclick = () => openMap(b.dataset.map));
   $$('[data-star]', sheet).forEach(b => b.onclick = () => toggleFav(b.dataset.star));
+}
+let sheetSeq = 0, sheetT = null;
+function sheetPlaces(q) {
+  const mine = ++sheetSeq; clearTimeout(sheetT);
+  if (q.length < 3) return;
+  sheetT = setTimeout(async () => {
+    const res = await osmSearch(q);
+    if (mine !== sheetSeq || !res?.length || !$('#spot-sheet').open) return;
+    $('#sheet-list').insertAdjacentHTML('beforeend', `<h3>Other places</h3><ul class="pick-list">${res.map((r, i) => `<li><button type="button" class="pick-row" data-osm="${i}">${esc(r.name)} <span class="muted small">${esc(r.sub)}</span></button><span class="muted small add-tag">＋ Add</span></li>`).join('')}</ul><p class="muted small">Places © OpenStreetMap. Tap one to pin it and save it as your spot.</p>`);
+    $$('[data-osm]', $('#sheet-list')).forEach(b => b.onclick = () => { const r = res[+b.dataset.osm]; addSpotAt(r.lat, r.lng, r.name); });
+  }, 600);
 }
 function openSheet() {
   const s = $('#spot-sheet');
   $('#sheet-q').value = '';
   if (!s.open) s.showModal();
   renderSheet();
+}
+
+// ---------- map of spots ----------
+let smap = null, slayer = null;
+const directions = p => `https://maps.apple.com/?daddr=${p.lat},${p.lng}&q=${encodeURIComponent(p.name)}`;
+function mapInfo(key) {
+  const p = place(key); if (!p) return;
+  const on = favs.includes(key);
+  $('#map-info').innerHTML = `<div class="map-pick">
+      <div><strong>${esc(p.name)}</strong>${p.boat ? ' <span class="muted small">(boat)</span>' : ''}<div class="muted small">${key.startsWith('sta:') ? 'NOAA tide station' : `Tides from ${esc(p.station.name)}`}</div></div>
+      <button type="button" class="star ${on ? 'on' : ''}" id="map-star" aria-pressed="${on}" aria-label="${on ? 'Remove from' : 'Add to'} My spots">${on ? '★' : '☆'}</button>
+    </div>
+    <div class="row map-btns">
+      <button type="button" class="primary" id="map-use">Show conditions</button>
+      <a class="btn" href="${directions(p)}" target="_blank" rel="noopener">Directions ↗</a>
+    </div>
+    <div class="row map-btns">
+      <button type="button" id="map-add">＋ Add my own spot</button>
+      ${p.custom ? '<button type="button" class="danger" id="map-del">Delete this spot</button>' : ''}
+    </div>`;
+  $('#map-use').onclick = () => { $('#map-sheet').close(); choose(key); };
+  $('#map-add').onclick = startAdd;
+  if (p.custom) $('#map-del').onclick = e => {
+    const b = e.currentTarget;
+    if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'Tap again to delete'; return; }
+    setMySpots(mySpots().filter(m => 'spot:' + m.id !== key));
+    store.saveMySpots(mySpots()).catch(() => { });
+    if (favs.includes(key)) { favs = favs.filter(k => k !== key); saveFavs(); }
+    if (active === key) { active = 'spot:fort-desoto'; ls.set('place', active); }
+    toast('Spot deleted'); render(); drawPins(active); mapInfo(active);
+  };
+  $('#map-star').onclick = () => { toggleFav(key); mapInfo(key); drawPins(key); };
+}
+function drawPins(sel) {
+  slayer.clearLayers();
+  const keys = [...new Set([...SPOTS.map(s => 'spot:' + s.id), ...favs, active, sel])];
+  for (const key of keys) {
+    const p = place(key); if (!p) continue;
+    const isSel = key === sel, fav = favs.includes(key);
+    const c = isSel ? '#e07a4b' : fav ? '#e8a317' : p.custom ? '#3d6b47' : '#2f8f8a';
+    L.circleMarker([p.lat, p.lng], { radius: isSel ? 11 : 8, color: '#fff', weight: 2, fillColor: c, fillOpacity: 1 })
+      .bindTooltip(p.short, { direction: 'top', offset: [0, -8] })
+      .on('click', () => { mapInfo(key); drawPins(key); }).addTo(slayer);
+  }
+}
+// ---------- add my own spot ----------
+let adding = null; // {lat, lng} while dropping a pin
+let pinMarker = null;
+function startAdd() {
+  adding = {};
+  $('#map-title').textContent = 'Add my spot';
+  $('#map-info').innerHTML = `<p class="small"><strong>Tap the map</strong> where you fish, search for a place, or use where you are now.</p>
+    <div class="ps"><input type="search" id="add-q" placeholder="Search a place (e.g. Ben T. Davis Beach)" autocomplete="off" aria-label="Search a place"><ul class="ps-list" id="add-q-list"></ul></div>
+    <div class="row map-btns"><button type="button" id="add-here">📍 Use my location</button><button type="button" id="add-cancel">Cancel</button></div>`;
+  attachSearch($('#add-q'), $('#add-q-list'), r => {
+    if (r.kind === 'osm') { smap.setView([r.lat, r.lng], 15); dropPin(r.lat, r.lng, r.name); }
+    else { const p = place(r.key); if (p) { smap.setView([p.lat, p.lng], 14); dropPin(p.lat, p.lng, r.kind === 'sta' ? p.name : ''); } }
+  });
+  $('#add-here').onclick = () => {
+    const b = $('#add-here');
+    if (!navigator.geolocation) { b.textContent = 'Location not available'; return; }
+    b.textContent = 'Finding you…';
+    navigator.geolocation.getCurrentPosition(pos => { dropPin(pos.coords.latitude, pos.coords.longitude); smap.setView([pos.coords.latitude, pos.coords.longitude], 15); },
+      () => { b.textContent = 'Location is off (Settings › Safari › Location)'; }, { enableHighAccuracy: true, timeout: 15000 });
+  };
+  $('#add-cancel').onclick = endAdd;
+}
+function endAdd(key) {
+  adding = null; pinMarker?.remove(); pinMarker = null;
+  $('#map-title').textContent = 'Spots map';
+  const k = typeof key === 'string' ? key : active;
+  drawPins(k); mapInfo(k);
+}
+function dropPin(lat, lng, presetName) {
+  if (!adding) return;
+  adding = { lat, lng };
+  if (pinMarker) pinMarker.setLatLng([lat, lng]);
+  else pinMarker = L.marker([lat, lng], { draggable: true }).addTo(smap).on('dragend', e => { const ll = e.target.getLatLng(); adding.lat = ll.lat; adding.lng = ll.lng; });
+  const name = presetName ?? ($('#add-name')?.value || '');
+  const type = document.querySelector('[name=add-type]:checked')?.value || 'shore';
+  $('#map-info').innerHTML = `<label>Spot name <input id="add-name" maxlength="40" placeholder="e.g. Dad's dock" value="${esc(name)}"></label>
+    <fieldset class="seg" aria-label="How you fish it">${Object.entries(SPOT_TYPES).map(([v, t]) => `<label><input type="radio" name="add-type" value="${v}" ${v === type ? 'checked' : ''}><span>${t}</span></label>`).join('')}</fieldset>
+    <p class="muted small">Drag the pin to adjust. Tides come from the nearest NOAA station.</p>
+    <div class="row map-btns"><button type="button" class="primary" id="add-save">Save spot</button><button type="button" id="add-cancel">Cancel</button></div>`;
+  $('#add-cancel').onclick = endAdd;
+  $('#add-save').onclick = () => {
+    const nm = $('#add-name').value.trim();
+    if (!nm) { $('#add-name').focus(); $('#add-name').placeholder = 'Give it a name first'; return; }
+    const id = 'my-' + Date.now().toString(36);
+    setMySpots([...mySpots(), { id, name: nm, lat: +adding.lat.toFixed(5), lng: +adding.lng.toFixed(5), type: document.querySelector('[name=add-type]:checked').value }]);
+    store.saveMySpots(mySpots()).catch(() => { });
+    const key = 'spot:' + id;
+    if (!favs.includes(key)) { favs = [...favs, key]; saveFavs(); }
+    active = key; ls.set('place', key);
+    toast(`★ ${nm} saved to My spots`); render(); endAdd(key);
+    document.dispatchEvent(new CustomEvent('spot-added', { detail: id }));
+  };
+}
+
+// Open the map with a pin already dropped (from a place search), ready to name and save.
+export function addSpotAt(lat, lng, name = '') {
+  openMap(active);
+  setTimeout(() => { startAdd(); smap.setView([lat, lng], 15); dropPin(lat, lng, name); }, 80);
+}
+
+// Map sheet: every spot as a pin, the chosen one in coral, starred ones in gold.
+export function openMap(key = active) {
+  const d = $('#map-sheet');
+  if ($('#spot-sheet').open) $('#spot-sheet').close();
+  if (!d.open) d.showModal();
+  const p = place(key) || activePlace();
+  if (!smap) {
+    smap = L.map('spot-map').setView([p.lat, p.lng], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(smap);
+    slayer = L.layerGroup().addTo(smap);
+    smap.on('click', e => { if (adding) dropPin(e.latlng.lat, e.latlng.lng); });
+  }
+  if (adding) endAdd();
+  setTimeout(() => { smap.invalidateSize(); smap.setView([p.lat, p.lng], 12); }, 60);
+  drawPins(p.key); mapInfo(p.key);
 }
 
 let toastT;
@@ -294,6 +433,11 @@ function toast(msg) {
 
 // ---------- wire up ----------
 $('#here-btn').onclick = openSheet;
+$('#here-map').onclick = () => openMap(active);
+$('#sheet-map').onclick = () => openMap(active);
+$('#map-close').onclick = () => $('#map-sheet').close();
+$('#map-sheet').addEventListener('close', () => { if (adding) endAdd(); });
+$('#map-sheet').addEventListener('click', e => { if (e.target.id === 'map-sheet') e.target.close(); });
 $('#spot-add').onclick = openSheet;
 $('#sheet-close').onclick = () => $('#spot-sheet').close();
 $('#spot-sheet').addEventListener('click', e => { if (e.target.id === 'spot-sheet') e.target.close(); }); // tap outside

@@ -36,3 +36,27 @@ export function nearestSpot(lat, lng) {
   for (const s of SPOTS) { const d = km(lat, lng, s.lat, s.lng); if (d < bd) { bd = d; best = s; } }
   return best;
 }
+
+// ---------- James's own spots ----------
+// Saved on this phone (localStorage 'mySpots') and on his account. They join SPOTS with custom: true,
+// so Today, Plan and trip conditions treat them like any other spot.
+// type: shore | wade | kayak | boat. Habitat tags come from the nearest listed spot when it's close,
+// otherwise from the type.
+export const SPOT_TYPES = { shore: 'Shore', wade: 'Wade', kayak: 'Kayak', boat: 'Boat' };
+const TYPE_TAGS = { shore: ['docks', 'beach', 'mangroves'], wade: ['flats', 'mangroves', 'oysters'], kayak: ['flats', 'mangroves', 'oysters'], boat: ['bay', 'flats', 'bridges'] };
+function tagsFor(lat, lng, type) {
+  let best = null, bd = Infinity;
+  for (const s of SPOTS) if (!s.custom) { const d = km(lat, lng, s.lat, s.lng); if (d < bd) { bd = d; best = s; } }
+  return bd < 6 ? best.tags : TYPE_TAGS[type] || TYPE_TAGS.shore;
+}
+export function setMySpots(list) {
+  for (let i = SPOTS.length - 1; i >= 0; i--) if (SPOTS[i].custom) SPOTS.splice(i, 1);
+  for (const m of list || []) {
+    if (!m?.id || !Number.isFinite(m.lat) || !Number.isFinite(m.lng)) continue;
+    SPOTS.push({ id: m.id, name: m.name || 'My spot', lat: m.lat, lng: m.lng, type: m.type, custom: true, boat: m.type === 'boat', tags: tagsFor(m.lat, m.lng, m.type) });
+  }
+  try { localStorage.setItem('mySpots', JSON.stringify(mySpots())); } catch { }
+  document.dispatchEvent(new Event('spots-changed'));
+}
+export const mySpots = () => SPOTS.filter(s => s.custom).map(({ id, name, lat, lng, type }) => ({ id, name, lat, lng, type }));
+try { setMySpots(JSON.parse(localStorage.getItem('mySpots') || '[]')); } catch { }

@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600&display=swap">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=18">
+  <link rel="stylesheet" href="css/style.css?v=19">
 </head>
 <body data-view="today">
   <header class="hero">
@@ -28,6 +28,7 @@
       <div class="hero-today">
         <p class="hello"><span id="hello">Hello, James</span> · <span id="here-date"></span></p>
         <button type="button" id="here-btn" class="here-btn" aria-label="Change spot"><span aria-hidden="true">📍</span><span id="here-name">Fort De Soto</span><span class="caret" aria-hidden="true">▾</span></button>
+        <button type="button" id="here-map" class="here-btn here-map" aria-label="Show this spot on a map"><span aria-hidden="true">🗺</span>Map</button>
         <div id="now" class="now" aria-live="polite"><div class="dial" style="--v:0"><b>…</b><small>bite</small></div><div class="now-text"><div class="now-head">Checking the water…</div></div></div>
       </div>
     </div>
@@ -139,6 +140,7 @@
           <label>Date <input type="date" id="plan-date" required></label>
           <label>Time <input type="time" id="plan-time" required></label>
         </div>
+        <div class="ps"><label for="plan-q">Find a spot</label><input type="search" id="plan-q" placeholder="Search your spots, listed spots or any place" autocomplete="off"><ul class="ps-list" id="plan-q-list"></ul></div>
         <label>Spot <select id="plan-spot"></select></label>
         <div class="row end">
           <button type="button" id="plan-near">Nearest to me</button>
@@ -201,9 +203,14 @@
 
   <dialog id="spot-sheet" class="sheet" aria-labelledby="sheet-title">
     <div class="sheet-head"><h2 id="sheet-title">Pick a spot</h2><button type="button" id="sheet-close" class="link-btn" aria-label="Close">Done</button></div>
-    <input type="search" id="sheet-q" placeholder="Search spots and tide stations" autocomplete="off" aria-label="Search spots">
-    <button type="button" id="sheet-near" class="wide">📍 Nearest to me</button>
+    <input type="search" id="sheet-q" placeholder="Search spots, stations or any place" autocomplete="off" aria-label="Search spots">
+    <div class="row sheet-actions"><button type="button" id="sheet-near">📍 Nearest to me</button><button type="button" id="sheet-map">🗺 Map of spots</button></div>
     <div id="sheet-list"></div>
+  </dialog>
+  <dialog id="map-sheet" class="sheet map-sheet" aria-labelledby="map-title">
+    <div class="sheet-head"><h2 id="map-title">Spots map</h2><button type="button" id="map-close" class="link-btn">Done</button></div>
+    <div id="spot-map" class="map"></div>
+    <div id="map-info"></div>
   </dialog>
   <div id="toast" class="toast" role="status"></div>
 
@@ -243,7 +250,7 @@
   <script src="vendor/leaflet/leaflet.js"></script>
   <script src="vendor/suncalc/suncalc.js"></script>
   <script src="vendor/supabase/supabase.js"></script>
-  <script type="module" src="js/app.js?v=18"></script>
-  <script type="module" src="js/plan.js?v=18"></script>
+  <script type="module" src="js/app.js?v=19"></script>
+  <script type="module" src="js/plan.js?v=19"></script>
 </body>
 </html>
