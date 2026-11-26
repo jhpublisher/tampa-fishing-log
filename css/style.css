@@ -208,6 +208,15 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; min-
 .ps-list button:active, .ps-list button:hover { background: var(--sand); }
 .ps-list button span { font-size: .82rem; color: var(--muted); }
 .ps-note { padding: 6px 10px; }
+.combo-box { position: relative; margin-top: 3px; }
+.combo-box input { margin-top: 0; padding-right: 48px; }
+.combo-arrow { position: absolute; right: 0; top: 0; width: 46px; height: 100%; min-height: 44px; padding: 0; border: 0; background: none; color: var(--muted); font-size: 1rem; }
+.combo.open .combo-arrow { transform: rotate(180deg); }
+.combo .ps-list { position: absolute; left: 0; right: 0; z-index: 20; max-height: min(55vh, 420px); box-shadow: 0 10px 30px rgba(0, 0, 0, .18); }
+.ps-group { position: sticky; top: -4px; background: var(--card); padding: 8px 10px 4px; font: 600 .75rem var(--label); text-transform: uppercase; letter-spacing: .1em; color: var(--flats); }
+.pick-group summary { list-style: none; cursor: pointer; }
+.pick-group summary::-webkit-details-marker { display: none; }
+.pick-group summary h3::before { content: '▸ '; } .pick-group[open] summary h3::before { content: '▾ '; }
 .add-tag { flex: none; padding: 0 8px; color: var(--flats); font-weight: 700; }
 .toast { position: fixed; left: 50%; bottom: calc(86px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
   background: var(--gulf); color: #fff8ec; padding: 10px 16px; border-radius: 999px; font-weight: 600; font-size: .92rem; transition: .2s ease; z-index: 1100; white-space: nowrap; }

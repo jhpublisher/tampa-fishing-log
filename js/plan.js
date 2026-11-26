@@ -1,8 +1,8 @@
 // "Plan" tab: what to target at a spot and time, and where/when to go for a species.
 import { getHiLo, nearestStation, loadStations } from './tides.js';
-import { SPOTS, spotById, nearestSpot } from './spots.js';
-import { attachSearch } from './placesearch.js';
-import { addSpotAt, place } from './home.js';
+import { SPOTS, spotById, nearestSpot, CATS, catOf } from './spots.js';
+import { spotCombo, saveLoc, refPoint } from './placesearch.js';
+import { addSpotAt, place, activePlace } from './home.js';
 import { estimateWaterTemp, latestWaterTemp, typicalTemp, windForecast, windAt } from './conditions.js';
 import { TARGETS, makeContext, rankSpecies, findWindows, catchHistory } from './recommend.js';
 import * as store from './store.js';
@@ -29,20 +29,30 @@ const legal = r => r.cr ? '<span class="tag">Catch &amp; release</span>' : r.clo
 const spotSel = $('#plan-spot'), spSel = $('#plan-species');
 const fillSpots = () => {
   const keep = spotSel.value;
-  spotSel.innerHTML = SPOTS.map(s => `<option value="${s.id}">${esc(s.name)}${s.custom ? ' (mine)' : s.boat ? ' (boat)' : ''}</option>`).join('');
+  // grouped by kind of spot, A to Z inside each group
+  spotSel.innerHTML = '<option value=""></option>' + Object.entries(CATS).map(([c, title]) => {
+    const list = SPOTS.filter(s => catOf(s) === c).sort((a, b) => a.name.localeCompare(b.name));
+    return list.length ? `<optgroup label="${esc(title)}">${list.map(s => `<option value="${s.id}">${esc(s.name)}${s.boat && c !== 'ramp' && c !== 'offshore' ? ' (boat)' : ''}</option>`).join('')}</optgroup>` : '';
+  }).join('');
   if (SPOTS.some(s => s.id === keep)) spotSel.value = keep;
 };
 fillSpots();
 document.addEventListener('spots-changed', fillSpots);
-// Search: a spot fills the picker; a tide station or map place opens the map to save it as your spot.
-attachSearch($('#plan-q'), $('#plan-q-list'), r => {
-  if (r.kind === 'spot') { spotSel.value = r.key.slice(5); $('#plan-q').value = ''; return; }
-  const p = r.kind === 'osm' ? r : place(r.key);
-  if (p) addSpotAt(p.lat, p.lng, r.name);
+// One box: pick a spot, or type to search. A tide station or map place opens the map to save it as your spot.
+spotSel.value = '';
+const combo = spotCombo($('#plan-combo'), {
+  ref: () => refPoint(activePlace()),
+  onPick: r => {
+    if (r.kind === 'spot') { spotSel.value = r.key.slice(5); return; }
+    spotSel.value = ''; combo.clear();
+    const p = r.kind === 'osm' ? r : place(r.key);
+    if (p) addSpotAt(p.lat, p.lng, r.name);
+  },
 });
+$('#plan-q').addEventListener('input', () => { spotSel.value = ''; }); // typed but not picked yet
 document.addEventListener('spot-added', e => {
   if (!document.getElementById('view-plan').classList.contains('active')) return;
-  fillSpots(); spotSel.value = e.detail; $('#plan-q').value = '';
+  fillSpots(); spotSel.value = e.detail; combo.set(spotById(e.detail)?.name);
 });
 spSel.innerHTML = TARGETS.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
 const now0 = new Date();
@@ -53,7 +63,9 @@ $('#plan-near').onclick = () => {
   if (!navigator.geolocation) return;
   $('#plan-near').textContent = 'Finding you…';
   navigator.geolocation.getCurrentPosition(p => {
+    saveLoc(p.coords.latitude, p.coords.longitude);
     spotSel.value = nearestSpot(p.coords.latitude, p.coords.longitude).id;
+    combo.set(spotById(spotSel.value)?.name);
     $('#plan-near').textContent = 'Nearest to me';
   }, () => { $('#plan-near').textContent = 'Location blocked'; }, { timeout: 15000 });
 };
@@ -63,6 +75,7 @@ $('#plan-what').onsubmit = async e => {
   e.preventDefault();
   const out = $('#plan-what-out');
   const spot = spotById(spotSel.value);
+  if (!spot) { status(out, 'Pick a spot first: tap the Spot box or type a place.'); $('#plan-q').focus(); return; }
   const t = new Date(`${$('#plan-date').value}T${$('#plan-time').value || '07:00'}`);
   if (isNaN(t)) return status(out, 'Pick a date and time.');
   status(out, 'Checking tides, water temp and wind…');
@@ -99,11 +112,12 @@ $('#plan-where').onsubmit = async e => {
   const id = spSel.value, days = 7, start = new Date();
   status(out, 'Scoring every spot for the next 7 days…');
   await loadStations();
-  const stations = [...new Set(SPOTS.map(s => nearestStation(s.lat, s.lng).id))];
+  const pool = SPOTS.filter(s => !s.osm);
+  const stations = [...new Set(pool.map(s => nearestStation(s.lat, s.lng).id))];
   const hiloBy = new Map(await Promise.all(stations.map(async sid => [sid, await getHiLo(sid, start, days).catch(() => null)])));
   const [wind, hist, live, sightings, redtide] = await Promise.all([windForecast(), history(), latestWaterTemp(27.77, -82.63), recentSightings(30), redTideSamples()]);
   const anomaly = live ? live.temp - typicalTemp(start) : 0;
-  const inputs = new Map(SPOTS.map(s => [s.id, {
+  const inputs = new Map(pool.map(s => [s.id, {
     hilo: hiloBy.get(nearestStation(s.lat, s.lng).id),
     temp: d => typicalTemp(d) + anomaly * Math.exp(-Math.max(0, (d - start) / DAY) / 10),
   }]));

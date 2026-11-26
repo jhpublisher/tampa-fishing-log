@@ -2,13 +2,13 @@
 // starred spots with their tides, what's biting, today's tide curve and the week ahead.
 import { STATIONS, loadStations, getHiLo, heightAt, flowAt, nearestStation } from './tides.js';
 import { moonInfo, solunarDay, forecast, scoreAt } from './solunar.js';
-import { SPOTS, nearestSpot, km, setMySpots, mySpots, SPOT_TYPES } from './spots.js';
+import { SPOTS, nearestSpot, km, setMySpots, mySpots, SPOT_TYPES, loadOsmSpots } from './spots.js';
 import { latestWaterTemp, windForecast, windAt } from './conditions.js';
 import { makeContext, rankSpecies } from './recommend.js';
 import { recentSightings, redTideSamples, redTideAt } from './sightings.js';
 import { GUIDE } from './guide.js';
 import * as store from './store.js';
-import { attachSearch, osmSearch } from './placesearch.js';
+import { attachSearch, osmSearch, groupedSpots, refPoint, saveLoc } from './placesearch.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -277,10 +277,20 @@ function renderSheet() {
       <button type="button" class="row-map" data-map="${esc(key)}" aria-label="Show ${esc(p.name)} on a map">🗺</button>
       <button type="button" class="star ${on ? 'on' : ''}" data-star="${esc(key)}" aria-pressed="${on}" aria-label="${on ? 'Remove from' : 'Add to'} My spots">${on ? '★' : '☆'}</button></li>`;
   };
-  const group = (title, keys) => { const h = keys.map(row).join(''); return h ? `<h3>${title}</h3><ul class="pick-list">${h}</ul>` : ''; };
+  const group = (title, keys, fold) => {
+    const h = keys.map(row).join(''); if (!h) return '';
+    const n = (h.match(/<li/g) || []).length;
+    return fold && !q ? `<details class="pick-group"><summary><h3>${title} <span class="muted small">${n}</span></h3></summary><ul class="pick-list">${h}</ul></details>`
+      : `<h3>${title}</h3><ul class="pick-list">${h}</ul>`;
+  };
+  const ref = refPoint(activePlace());
+  const groups = groupedSpots(ref);
+  const closest = groups.flatMap(g => g.rows).filter(r => !favs.includes(r.key))
+    .map(r => ({ r, p: place(r.key) })).sort((a, b) => km(ref.lat, ref.lng, a.p.lat, a.p.lng) - km(ref.lat, ref.lng, b.p.lat, b.p.lng)).slice(0, 6).map(x => x.r.key);
   $('#sheet-list').innerHTML = (favs.length ? group('My spots', favs) : '')
-    + group('Fishing spots', SPOTS.map(s => 'spot:' + s.id).filter(k => !favs.includes(k)))
-    + group('NOAA tide stations', STATIONS.map(s => 'sta:' + s.id).filter(k => !favs.includes(k)))
+    + (q ? '' : group(ref.me ? 'Closest to you' : `Closest to ${esc(activePlace().short)}`, closest))
+    + groups.map(g => group(g.title, g.rows.map(r => r.key).filter(k => !favs.includes(k)), true)).join('')
+    + group('NOAA tide stations', STATIONS.map(s => 'sta:' + s.id).filter(k => !favs.includes(k)), true)
     || `<p class="muted">${q.length >= 3 ? 'Searching places…' : 'No matches.'}</p>`;
   $$('.pick-row', sheet).forEach(b => b.onclick = () => choose(b.dataset.key));
   sheetPlaces(q);
@@ -415,7 +425,7 @@ export function openMap(key = active) {
   if (!d.open) d.showModal();
   const p = place(key) || activePlace();
   if (!smap) {
-    smap = L.map('spot-map').setView([p.lat, p.lng], 12);
+    smap = L.map('spot-map', { preferCanvas: true }).setView([p.lat, p.lng], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(smap);
     slayer = L.layerGroup().addTo(smap);
     smap.on('click', e => { if (adding) dropPin(e.latlng.lat, e.latlng.lng); });
@@ -448,12 +458,14 @@ $('#sheet-near').onclick = () => {
   b.textContent = 'Finding you…';
   navigator.geolocation.getCurrentPosition(pos => {
     b.textContent = '📍 Nearest to me';
+    saveLoc(pos.coords.latitude, pos.coords.longitude);
     choose('spot:' + nearestSpot(pos.coords.latitude, pos.coords.longitude).id);
   }, () => { b.textContent = 'Location is off (Settings › Safari › Location)'; }, { enableHighAccuracy: false, timeout: 15000 });
 };
 
 render();
 loadStations().then(() => { if (!place(active)) active = 'spot:fort-desoto'; render(); });
+setTimeout(() => loadOsmSpots().then(() => renderSheet()), 1500); // more piers and ramps from OpenStreetMap
 loadExtras();
 setInterval(render, 5 * 60e3); // keep "now" fresh if the app stays open
 document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
