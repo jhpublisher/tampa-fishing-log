@@ -5,6 +5,7 @@ import { SPECIES, byId, isOpen } from './species.js';
 import { SPOTS, km } from './spots.js';
 import { flowAt } from './tides.js';
 import { moonInfo, solunarDay } from './solunar.js';
+import { nearby, redTideAt } from './sightings.js';
 
 const H = 3600e3;
 
@@ -40,13 +41,15 @@ function tempFit([lo, il, ih, hi], t) {
 }
 
 // Context for one spot and time. tides: hilo array (or null). wind: {mph, dir} (or null). temp: °F.
-export function makeContext(spot, t, { hilo, wind, temp, day }) {
+// sightings: recent iNaturalist sightings (or null). redtide: FWC samples (or null).
+export function makeContext(spot, t, { hilo, wind, temp, day, sightings, redtide }) {
   day = day || solunarDay(t, spot.lat, spot.lng);
   const flow = hilo ? flowAt(hilo, t) : null;
   const toLight = Math.min(Math.abs(t - day.sunrise), Math.abs(t - day.sunset)) / H;
   const night = t < day.sunrise || t > day.sunset;
   const sol = day.periods.find(p => Math.abs(t - p.center) <= (p.kind === 'major' ? 1 : 0.5) * H);
-  return { spot, t, temp, wind, flow, toLight, night, sol, moon: moonInfo(t) };
+  const rt = redtide ? redTideAt(redtide, spot.lat, spot.lng) : null;
+  return { spot, t, temp, wind, flow, toLight, night, sol, moon: moonInfo(t), sightings, redtide: rt };
 }
 
 // History: catches from your trips, each {species, lat, lng, date}.
@@ -110,6 +113,16 @@ export function scoreSpecies(id, ctx, history = []) {
   const bonus = Math.min(10, here * 4) + Math.min(5, season * 1.5);
   if (bonus) { s += bonus; why.push(here ? `you've caught ${here} here` : `you catch them this time of year`); }
 
+  // recent public sightings near this spot (iNaturalist): up to +8
+  if (ctx.sightings) {
+    const n = nearby(ctx.sightings, id, ctx.spot.lat, ctx.spot.lng).length;
+    if (n) { s += Math.min(8, 3 + n * 2); why.push(`${n} spotted nearby lately`); }
+  }
+
+  // red tide near this spot (FWC samples): medium or high kills the bite
+  if (ctx.redtide?.level >= 3) { s -= 25; why.push(`${ctx.redtide.label} red tide nearby`); }
+  else if (ctx.redtide?.level === 2) { s -= 10; why.push('low red tide nearby'); }
+
   const score = Math.max(0, Math.min(100, Math.round(s)));
   const closed = !sp.cr && !isOpen(sp, ctx.t);
   return { id, name: sp.name, score, why, closed, cr: !!sp.cr, tip: p.tide };
@@ -122,7 +135,7 @@ export function rankSpecies(ctx, history) {
 
 // Feature 2: best spot and 2-hour windows for one species over the next `days` days.
 // getInputs(spot) -> {hilo, temp(date)}; wind: NWS periods.
-export function findWindows(id, start, days, inputs, wind, history, pick = 5) {
+export function findWindows(id, start, days, inputs, wind, history, extra = {}, pick = 5) {
   const all = [];
   for (const spot of SPOTS) {
     const inp = inputs.get(spot.id);
@@ -134,7 +147,7 @@ export function findWindows(id, start, days, inputs, wind, history, pick = 5) {
         const t = new Date(+d0 + (h + 1) * H); // middle of a 2-hour window starting at h
         if (t < start) continue;
         const w = wind.find(p => t >= p.start && t < p.end) || null;
-        const r = scoreSpecies(id, makeContext(spot, t, { hilo: inp.hilo, wind: w, temp, day }), history);
+        const r = scoreSpecies(id, makeContext(spot, t, { hilo: inp.hilo, wind: w, temp, day, ...extra }), history);
         all.push({ ...r, spot, start: new Date(+d0 + h * H), end: new Date(+d0 + (h + 2) * H), wind: w });
       }
     }

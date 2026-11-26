@@ -148,3 +148,6 @@ details { margin-top: 8px; } summary { cursor: pointer; color: var(--flats); fon
 .tabs button.active { color: var(--sun); box-shadow: inset 0 3px 0 var(--coral); }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+.reports li { flex-direction: column; gap: 2px; }
+.reports a { color: inherit; }
+#recent-map { height: 300px; }

@@ -1,10 +1,10 @@
 // Caches the app shell so it opens without signal. Tide data still needs a connection.
-const C = 'fishlog-v6';
-const SHELL = ['./', 'index.html', 'css/style.css', 'js/app.js', 'js/tides.js', 'js/solunar.js', 'js/species.js', 'js/store.js', 'js/exif.js', 'js/config.js', 'js/plan.js', 'js/recommend.js', 'js/spots.js', 'js/conditions.js', 'vendor/supabase/supabase.js', 'icon.svg', 'icons/icon-180.png', 'icons/icon-192.png', 'manifest.webmanifest', 'vendor/leaflet/leaflet.js', 'vendor/leaflet/leaflet.css', 'vendor/suncalc/suncalc.js'];
+const C = 'fishlog-v7';
+const SHELL = ['./', 'index.html', 'css/style.css', 'js/app.js', 'js/tides.js', 'js/solunar.js', 'js/species.js', 'js/store.js', 'js/exif.js', 'js/config.js', 'js/plan.js', 'js/recommend.js', 'js/spots.js', 'js/conditions.js', 'js/sightings.js', 'vendor/supabase/supabase.js', 'icon.svg', 'icons/icon-180.png', 'icons/icon-192.png', 'manifest.webmanifest', 'vendor/leaflet/leaflet.js', 'vendor/leaflet/leaflet.css', 'vendor/suncalc/suncalc.js'];
 self.addEventListener('install', e => e.waitUntil(caches.open(C).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())));
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== C).map(k => caches.delete(k)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
-  if (e.request.method !== 'GET' || u.hostname.includes('tidesandcurrents') || u.hostname.includes('tile.openstreetmap') || u.hostname.includes('supabase') || u.hostname.includes('weather.gov')) return;
+  if (e.request.method !== 'GET' || u.hostname.includes('tidesandcurrents') || u.hostname.includes('tile.openstreetmap') || u.hostname.includes('supabase') || u.hostname.includes('weather.gov') || u.hostname.includes('inaturalist') || u.hostname.includes('myfwc') || u.hostname.includes('hubbardsmarina')) return;
   e.respondWith(fetch(e.request).then(r => { const copy = r.clone(); caches.open(C).then(c => c.put(e.request, copy)); return r; }).catch(() => caches.match(e.request)));
 });
