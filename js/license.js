@@ -103,14 +103,26 @@ function renderForm() {
         permits: Object.fromEntries(PERMITS.map(([k]) => [k, f['p-' + k].checked])),
       }, photos);
       renderReminder();
+      renderLink();
       await renderView();
     } catch (err) { $('#lic-msg').textContent = err.message; btn.disabled = false; btn.textContent = 'Save license'; }
   };
 }
 
+// Shortcut button on My trips that opens the License tab and shows its status.
+function renderLink() {
+  const el = $('#license-link'); if (!el) return;
+  const lic = store.getLicense(), n = daysLeft(lic);
+  const status = !lic ? 'Add your license' : n == null ? (lic.type || 'Saved') : n < 0 ? 'Expired' : n <= 30 ? `${n} day${n === 1 ? '' : 's'} left` : `Valid until ${fmtDate(lic.expires)}`;
+  el.innerHTML = `<span class="lic-link-icon" aria-hidden="true">🪪</span><span><strong>Fishing license</strong><small>${esc(status)}</small></span><span aria-hidden="true">›</span>`;
+  el.classList.toggle('warn', n != null && n <= 30);
+}
+
 export function onAuth(user) {
   const box = $('#license-card'); if (!box) return;
   box.hidden = !user;
-  if (user) renderView();
+  $('#license-signedout').hidden = !!user;
+  $('#license-link').hidden = !user;
+  if (user) { renderView(); renderLink(); }
   renderReminder();
 }

@@ -25,6 +25,8 @@ function show(view) {
   if (view === 'log' && store.currentUser()) renderTrips();
 }
 $$('.tabs button').forEach(b => b.onclick = () => show(b.dataset.view));
+// Any element with data-go jumps to that tab (e.g. the license shortcut on My trips).
+document.addEventListener('click', e => { const t = e.target.closest('[data-go]'); if (t) show(t.dataset.go); });
 
 // ---------- trips list ----------
 const urls = []; // object URLs to free on re-render

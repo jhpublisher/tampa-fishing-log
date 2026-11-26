@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600&display=swap">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=13">
+  <link rel="stylesheet" href="css/style.css?v=14">
 </head>
 <body data-view="today">
   <header class="hero">
@@ -79,12 +79,23 @@
         <p id="auth-msg" class="small"></p>
       </form>
       <div id="trips-area" class="hidden">
-        <div id="license-reminder" class="lic-reminder" role="status" hidden></div>
-        <section id="license-card" class="card lic-card" hidden></section>
+        <button type="button" id="license-link" class="lic-link" data-go="license" hidden></button>
         <button class="primary wide" id="new-trip-btn">+ New trip</button>
         <div id="trip-list"></div>
         <p class="small muted" style="text-align:center">Signed in as <span id="who"></span> · <button type="button" id="signout-btn">Sign out</button></p>
       </div>
+    </section>
+
+    <!-- LICENSE -->
+    <section id="view-license" class="view">
+      <div id="license-reminder" class="lic-reminder" role="status" hidden></div>
+      <div id="license-signedout" class="card">
+        <h2>Fishing license</h2>
+        <p class="muted small">Keep your license number, expiry date, permits and a photo of the card here, so it's on your phone when FWC asks.</p>
+        <p class="small">Sign in first so it's saved privately to your account.</p>
+        <button type="button" class="primary" data-go="log">Sign in on My trips</button>
+      </div>
+      <section id="license-card" class="card lic-card" hidden></section>
     </section>
 
     <!-- TRIP EDIT -->
@@ -181,6 +192,7 @@
   <nav class="tabs">
     <button data-view="today" class="active"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 15c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2M2 20c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2"/><circle cx="12" cy="7" r="3"/></svg>Today</button>
     <button data-view="log"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12c3-4.5 9-6 14-2l4-3v10l-4-3c-5 4-11 2.5-14-2z"/><circle cx="8" cy="11.5" r=".9" fill="currentColor"/></svg>My trips</button>
+    <button data-view="license"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M6 16c.6-1.6 1.7-2.4 3-2.4s2.4.8 3 2.4M14.5 10h4M14.5 13h3"/></svg>License</button>
     <button data-view="plan"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>Plan</button>
     <button data-view="species"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3v9a4 4 0 1 1-8 0"/><path d="M6 12l-2-2"/><circle cx="14" cy="3" r="1"/></svg>Species</button>
   </nav>
@@ -218,7 +230,7 @@
   <script src="vendor/leaflet/leaflet.js"></script>
   <script src="vendor/suncalc/suncalc.js"></script>
   <script src="vendor/supabase/supabase.js"></script>
-  <script type="module" src="js/app.js?v=13"></script>
-  <script type="module" src="js/plan.js?v=13"></script>
+  <script type="module" src="js/app.js?v=14"></script>
+  <script type="module" src="js/plan.js?v=14"></script>
 </body>
 </html>
