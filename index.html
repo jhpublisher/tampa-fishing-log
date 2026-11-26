@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600&display=swap">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=15">
+  <link rel="stylesheet" href="css/style.css?v=16">
 </head>
 <body data-view="today">
   <header class="hero">
@@ -114,6 +114,7 @@
         </div>
         <div id="trip-map" class="map"></div>
         <label>Notes <textarea name="notes" rows="3" placeholder="Water clarity, birds, what you tried..."></textarea></label>
+        <div id="trip-voice"></div>
         <div id="trip-conditions" class="muted small"></div>
 
         <h3>Catches</h3>
@@ -222,16 +223,20 @@
         <label>Time <input type="time" name="time"></label>
       </div>
       <label class="check"><input type="checkbox" name="kept"> Kept</label>
-      <label>Photo <input type="file" name="photo" accept="image/*"></label>
-      <img class="thumb hidden" alt="Catch photo">
       <div class="check-result small"></div>
+      <div class="pics">
+        <label class="pic">Fish photo <input type="file" name="photo" accept="image/*"><img class="thumb hidden" alt="Catch photo"></label>
+        <label class="pic">Setup photo <span class="small muted">lure, bait, rig</span><input type="file" name="setup" accept="image/*"><img class="setup-thumb thumb hidden" alt="Setup photo"></label>
+      </div>
+      <div class="catch-voice"></div>
+      <div class="cond small"></div>
     </fieldset>
   </template>
 
   <script src="vendor/leaflet/leaflet.js"></script>
   <script src="vendor/suncalc/suncalc.js"></script>
   <script src="vendor/supabase/supabase.js"></script>
-  <script type="module" src="js/app.js?v=15"></script>
-  <script type="module" src="js/plan.js?v=15"></script>
+  <script type="module" src="js/app.js?v=16"></script>
+  <script type="module" src="js/plan.js?v=16"></script>
 </body>
 </html>

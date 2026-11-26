@@ -191,7 +191,7 @@ body[data-view="today"] .hero h1 { margin-bottom: clamp(200px, 58vw, 300px); } /
 
 /* ---------- trips ---------- */
 .map { height: 240px; border-radius: 12px; margin: 8px 0; border: 1px solid var(--line); }
-.catch { border: 1px solid var(--line); border-radius: 12px; margin: 0 0 12px; padding: 10px 12px; background: var(--sand); }
+.catch { min-width: 0; border: 1px solid var(--line); border-radius: 12px; margin: 0 0 12px; padding: 10px 12px; background: var(--sand); }
 .thumb { max-width: 100%; max-height: 240px; border-radius: 10px; margin-top: 6px; }
 .rule { color: var(--muted); }
 .remove-catch { min-width: 44px; padding: 6px 12px; }
@@ -323,3 +323,21 @@ details { margin-top: 8px; } summary { cursor: pointer; color: var(--flats); fon
 .reports li { flex-direction: column; gap: 2px; }
 .reports a { color: inherit; }
 #recent-map { height: 300px; }
+
+/* ---------- catch extras: setup photo, voice notes, conditions ---------- */
+.pics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+.pic { display: flex; flex-direction: column; gap: 4px; font-weight: 600; min-width: 0; }
+.pic input[type=file] { font-size: .8rem; max-width: 100%; }
+.pic .thumb { width: 100%; max-height: 180px; object-fit: cover; }
+.voice { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.vn { display: flex; align-items: center; gap: 8px; }
+.vn audio { flex: 1; min-width: 0; height: 40px; }
+.vn-del { min-height: 40px; padding: 6px 10px; }
+.vn-rec { align-self: flex-start; min-height: 44px; }
+.vn-rec.recording { background: var(--bad); color: #fff; border-color: var(--bad); animation: recpulse 1.2s ease-in-out infinite; }
+@keyframes recpulse { 50% { opacity: .7; } }
+.cond { margin-top: 10px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--flats) 10%, transparent); line-height: 1.45; }
+.cond:empty { display: none; }
+.cond strong { display: block; font: 600 .75rem var(--label); text-transform: uppercase; letter-spacing: .08em; color: var(--flats); }
+#trip-voice { margin: 4px 0 10px; }
+.cond ul { margin: 4px 0 0; padding-left: 18px; } .cond li { margin: 2px 0; }

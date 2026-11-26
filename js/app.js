@@ -7,12 +7,14 @@ import * as license from './license.js';
 import * as store from './store.js';
 import { readExif } from './exif.js';
 import { pastWaterTemp } from './conditions.js';
+import { conditionsAt } from './catchcond.js';
+import { voiceWidget } from './voice.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const fmtTime = d => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 const fmtDay = d => d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const todayStr = (d = new Date()) => { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { } } };
 
@@ -51,7 +53,7 @@ async function renderTrips() {
 }
 
 // ---------- trip editor ----------
-let map, marker, editing = null;
+let map, marker, editing = null, tripVoice = null;
 const form = $('#trip-form');
 
 function setPin(lat, lng, zoom) {
@@ -82,6 +84,29 @@ function speciesOptions() {
   return '<option value="">Choose…</option>' + SPECIES.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
 }
 
+// ---------- per-catch conditions ----------
+const catchWhen = fs => {
+  const t = $('[name=time]', fs).value; if (!form.date.value || !t) return null;
+  return new Date(`${form.date.value}T${t}`);
+};
+const catchWhere = () => editing.lat != null ? [editing.lat, editing.lng] : (() => { const st = home.activeStation(); return [st.lat, st.lng]; })();
+const condKey = (when, [lat, lng]) => `${+when}|${lat.toFixed(3)}|${lng.toFixed(3)}`;
+function showCond(fs, note = '') {
+  const el = $('.cond', fs);
+  el.innerHTML = fs._cond ? `<strong>Conditions at catch</strong><ul>${fs._cond.text.split(' · ').map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : note;
+}
+async function refreshCond(fs) {
+  const when = catchWhen(fs); if (!when) return showCond(fs);
+  const where = catchWhere(), key = condKey(when, where);
+  if (fs._cond?.key === key) return showCond(fs);
+  showCond(Object.assign(fs, { _cond: null }), '<span class="muted">Looking up tide, weather and water temp…</span>');
+  fs._condKey = key;
+  const c = await conditionsAt(where[0], where[1], when).catch(() => null);
+  if (fs._condKey !== key) return; // changed again while loading
+  fs._cond = c ? { ...c, key } : null;
+  showCond(fs, c ? '' : '<span class="muted">Conditions unavailable right now; they will be looked up when you save.</span>');
+}
+
 function addCatchRow(c = {}) {
   const frag = $('#catch-template').content.cloneNode(true);
   const fs = $('fieldset', frag);
@@ -95,12 +120,23 @@ function addCatchRow(c = {}) {
   $('[name=kept]', fs).checked = !!c.kept;
   fs._photo = null; // new photo (Blob) not yet uploaded
   fs._photoPath = c.photoPath || null;
-  const img = $('.thumb', fs);
+  fs._setup = null; fs._setupPath = c.setupPath || null;
+  fs._cond = c.cond || null;
+  fs._voice = voiceWidget($('.catch-voice', fs), c.voices || [], 'Voice note');
+  const img = $('.thumb', fs), setupImg = $('.setup-thumb', fs);
   const showPhoto = () => {
     const src = fs._photo ? URL.createObjectURL(fs._photo) : c.photoUrl;
     if (src) { img.src = src; img.classList.remove('hidden'); }
+    const s2 = fs._setup ? URL.createObjectURL(fs._setup) : c.setupUrl;
+    if (s2) { setupImg.src = s2; setupImg.classList.remove('hidden'); }
   };
   showPhoto();
+  $('[name=setup]', fs).onchange = async e => {
+    const file = e.target.files[0]; if (!file) return;
+    fs._setup = await store.shrinkPhoto(file); showPhoto();
+  };
+  showCond(fs);
+  $('[name=time]', fs).addEventListener('change', () => refreshCond(fs));
 
   const update = () => {
     const sp = byId(sel.value);
@@ -121,12 +157,16 @@ function addCatchRow(c = {}) {
     showPhoto();
     if (ex.time) {
       $('[name=time]', fs).value = `${String(ex.time.getHours()).padStart(2, '0')}:${String(ex.time.getMinutes()).padStart(2, '0')}`;
+      // Photo taken on another day? Use that day for the trip if this is a new, empty trip.
+      const d = todayStr(ex.time);
+      if (d !== form.date.value && $('#trip-form-title').textContent === 'New trip') form.date.value = d;
     }
     if (ex.lat != null && editing.lat == null) setPin(ex.lat, ex.lng, 14);
     // iPhones often strip location from photos; use where you are now instead.
     else if (editing.lat == null && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(p => { if (editing.lat == null) setPin(p.coords.latitude, p.coords.longitude, 14); }, () => { }, { enableHighAccuracy: true, timeout: 15000 });
+      navigator.geolocation.getCurrentPosition(p => { if (editing.lat == null) setPin(p.coords.latitude, p.coords.longitude, 14); refreshCond(fs); }, () => { }, { enableHighAccuracy: true, timeout: 15000 });
     }
+    refreshCond(fs);
   };
   $('#catch-list').appendChild(fs);
   update();
@@ -143,6 +183,7 @@ async function openTrip(id) {
   $('#trip-conditions').textContent = t.conditions || '';
   $('#catch-list').innerHTML = '';
   (t.catches || []).forEach(addCatchRow);
+  tripVoice = voiceWidget($('#trip-voice'), t.voices || [], 'Trip voice note');
   $('#delete-trip-btn').classList.toggle('hidden', !id);
   $('#save-msg').textContent = '';
   show('trip');
@@ -195,9 +236,26 @@ form.onsubmit = async e => {
       kept: $('[name=kept]', fs).checked,
       photo: fs._photo || null,
       photoPath: fs._photo ? null : fs._photoPath,
+      setup: fs._setup || null,
+      setupPath: fs._setup ? null : fs._setupPath,
+      voices: fs._voice.get(),
+      cond: fs._cond || null,
+      _fs: fs,
     })),
+    voices: tripVoice ? tripVoice.get() : [],
     updated: new Date().toISOString(),
   };
+  $$('#catch-list .catch').forEach(fs => fs._voice.stop());
+  tripVoice?.stop();
+  const btn0 = $('button[type=submit]', form); btn0.disabled = true; btn0.textContent = 'Checking conditions…';
+  // Look up conditions for any catch that has a time but no (or out-of-date) conditions.
+  await Promise.all(trip.catches.map(async c => {
+    const fs = c._fs; delete c._fs;
+    const when = catchWhen(fs); if (!when) { c.cond = null; return; }
+    const key = condKey(when, catchWhere());
+    if (c.cond?.key !== key) { const r = await conditionsAt(...catchWhere(), when).catch(() => null); c.cond = r ? { ...r, key } : null; }
+  }));
+  btn0.disabled = false;
   const c = await conditionsFor(trip);
   trip.conditions = c.text; trip.moonPhase = c.moonPhase; trip.station = c.station; trip.waterTemp = c.waterTemp;
   const btn = $('button[type=submit]', form); btn.disabled = true; btn.textContent = 'Saving…';

@@ -31,14 +31,27 @@ export async function setFavPlaces(keys) {
 
 const fail = (error, what) => { if (error) throw new Error(`${what}: ${error.message}`); };
 
-// Adds short-lived photoUrl to each catch that has a stored photo.
+// Every stored file a trip points at: catch photo, setup photo, voice notes (catch and trip).
+const filePaths = t => [
+  ...(t.voices || []).map(v => v.path),
+  ...(t.catches || []).flatMap(c => [c.photoPath, c.setupPath, ...(c.voices || []).map(v => v.path)]),
+].filter(Boolean);
+
+// Adds short-lived URLs (photoUrl, setupUrl, voice url) for stored files.
 async function addPhotoUrls(trips) {
-  const paths = trips.flatMap(t => (t.catches || []).map(c => c.photoPath).filter(Boolean));
+  const paths = trips.flatMap(filePaths);
   if (!paths.length) return trips;
   const { data, error } = await sb.storage.from(PHOTO_BUCKET).createSignedUrls(paths, 3600);
   fail(error, 'Loading photos');
   const map = new Map(data.filter(d => d.signedUrl).map(d => [d.path, d.signedUrl]));
-  trips.forEach(t => (t.catches || []).forEach(c => { if (c.photoPath) c.photoUrl = map.get(c.photoPath) || null; }));
+  for (const t of trips) {
+    (t.voices || []).forEach(v => { v.url = map.get(v.path) || null; });
+    (t.catches || []).forEach(c => {
+      if (c.photoPath) c.photoUrl = map.get(c.photoPath) || null;
+      if (c.setupPath) c.setupUrl = map.get(c.setupPath) || null;
+      (c.voices || []).forEach(v => { v.url = map.get(v.path) || null; });
+    });
+  }
   return trips;
 }
 
@@ -56,27 +69,41 @@ export async function getTrip(id) {
   return (await addPhotoUrls([{ ...data.data, id: data.id }]))[0];
 }
 
-// Uploads any new photos (Blob in c.photo), then saves the trip row.
-// Photos removed from the trip are deleted from storage.
+const audioExt = type => /mp4|m4a|aac/.test(type) ? 'm4a' : /webm/.test(type) ? 'webm' : /ogg/.test(type) ? 'ogg' : 'audio';
+
+// Uploads any new photos (Blob in c.photo / c.setup) and voice notes ({blob} in voices),
+// then saves the trip row. Files no longer used by the trip are deleted from storage.
 export async function saveTrip(trip) {
   const uid = user?.id; if (!uid) throw new Error('Please sign in first.');
   const { data: old } = await sb.from('trips').select('data').eq('id', trip.id).maybeSingle();
+  const upload = async (blob, ext, what) => {
+    const path = `${uid}/${trip.id}/${newId()}.${ext}`;
+    const { error } = await sb.storage.from(PHOTO_BUCKET).upload(path, blob, { contentType: blob.type || (ext === 'jpg' ? 'image/jpeg' : 'audio/mp4') });
+    fail(error, what);
+    return path;
+  };
+  const saveVoices = async list => {
+    const out = [];
+    for (const v of list || []) {
+      const { blob, url, local, ...rest } = v;
+      if (blob instanceof Blob) rest.path = await upload(blob, audioExt(blob.type), 'Uploading voice note');
+      if (rest.path) out.push(rest);
+    }
+    return out;
+  };
   const catches = [];
   for (const c of trip.catches || []) {
-    const { photo, photoUrl, ...rest } = c;
-    if (photo instanceof Blob) {
-      const path = `${uid}/${trip.id}/${newId()}.jpg`;
-      const { error } = await sb.storage.from(PHOTO_BUCKET).upload(path, photo, { contentType: 'image/jpeg' });
-      fail(error, 'Uploading photo');
-      rest.photoPath = path;
-    }
+    const { photo, photoUrl, setup, setupUrl, ...rest } = c;
+    if (photo instanceof Blob) rest.photoPath = await upload(photo, 'jpg', 'Uploading photo');
+    if (setup instanceof Blob) rest.setupPath = await upload(setup, 'jpg', 'Uploading setup photo');
+    rest.voices = await saveVoices(c.voices);
     catches.push(rest);
   }
-  const data = { ...trip, catches };
+  const data = { ...trip, catches, voices: await saveVoices(trip.voices) };
   const { error } = await sb.from('trips').upsert({ id: trip.id, trip_date: trip.date || null, data, updated_at: new Date().toISOString() });
   fail(error, 'Saving trip');
-  const keep = new Set(catches.map(c => c.photoPath).filter(Boolean));
-  const gone = (old?.data?.catches || []).map(c => c.photoPath).filter(p => p && !keep.has(p));
+  const keep = new Set(filePaths(data));
+  const gone = filePaths(old?.data || {}).filter(p => !keep.has(p));
   if (gone.length) await sb.storage.from(PHOTO_BUCKET).remove(gone);
 }
 
