@@ -1,9 +1,9 @@
 {
-  "name": "Tampa Bay Fishing Log",
-  "short_name": "Fishing Log",
+  "name": "James's Fishing Log",
+  "short_name": "James Fishing",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#f3f6f8",
-  "theme_color": "#0b4f6c",
+  "background_color": "#f4efe4",
+  "theme_color": "#123c4a",
   "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
 }

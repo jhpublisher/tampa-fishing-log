@@ -49,15 +49,20 @@ async function renderToday() {
   const fc = forecast(now, 7, st.lat, st.lng, hilo);
   const t0 = fc[0];
   const flow = hilo ? flowAt(hilo, now) : null;
+  const verdict = t0.score >= 80 ? 'Get out there' : t0.score >= 65 ? 'Good day' : t0.score >= 50 ? 'Fair' : 'Slow day';
   $('#today-summary').innerHTML = `
-    <div class="row" style="justify-content:space-between">
-      <div><div class="muted small">Today at ${esc(st.name)}</div>
-        <div class="big">${t0.score}/100</div>
-        <div class="small">Best: ${t0.best.map(w => `${fmtTime(w.start)}–${fmtTime(new Date(+w.start + 2 * 3600e3))}`).join(', ')}</div></div>
-      <div style="text-align:right"><div style="font-size:2rem">${moon.icon}</div>
-        <div class="small">${moon.name}<br>${Math.round(moon.fraction * 100)}% lit</div></div>
+    <div class="today-head">
+      <div class="gauge" style="--v:${t0.score}"><span>${t0.score}</span></div>
+      <div class="today-main">
+        <div class="eyebrow">Today at ${esc(st.name)}</div>
+        <div class="verdict">${verdict}</div>
+        <div class="small">Best: <strong>${t0.best.map(w => `${fmtTime(w.start)}–${fmtTime(new Date(+w.start + 2 * 3600e3))}`).join('</strong> and <strong>')}</strong></div>
+      </div>
     </div>
-    ${flow ? `<div class="small" style="margin-top:6px">Tide now: ${heightAt(hilo, now).toFixed(1)} ft and ${flow.dir}</div>` : ''}`;
+    <div class="chips">
+      <span class="chip">${moon.icon} ${moon.name} · ${Math.round(moon.fraction * 100)}%</span>
+      ${flow ? `<span class="chip">${flow.dir === 'rising' ? '↑' : '↓'} ${heightAt(hilo, now).toFixed(1)} ft, ${flow.dir}</span>` : ''}
+    </div>`;
 
   // tide chart + list
   if (hilo) {
@@ -101,11 +106,11 @@ function tideSvg(hilo, now) {
   const x = m => pad + (W - 2 * pad) * m / 1440, y = v => Hh - pad - (Hh - 2 * pad) * (v - lo) / (hi - lo);
   const path = pts.filter(p => p[1] != null).map((p, i) => `${i ? 'L' : 'M'}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join('');
   const nm = (now - d0) / 60e3;
-  const ticks = [0, 6, 12, 18, 24].map(h => `<text x="${x(h * 60)}" y="${Hh - 2}" font-size="11" text-anchor="middle" fill="currentColor" opacity=".6">${h === 0 || h === 24 ? '12a' : h === 12 ? '12p' : h > 12 ? (h - 12) + 'p' : h + 'a'}</text>`).join('');
+  const ticks = [0, 6, 12, 18, 24].map(h => `<text x="${x(h * 60)}" y="${Hh - 1}" font-size="17" text-anchor="middle" fill="currentColor" opacity=".6">${h === 0 || h === 24 ? '12a' : h === 12 ? '12p' : h > 12 ? (h - 12) + 'p' : h + 'a'}</text>`).join('');
   return `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Today's tide curve">
-    <path d="${path} L${x(1440)},${Hh - pad} L${x(0)},${Hh - pad}Z" fill="var(--accent-2)" opacity=".18"/>
-    <path d="${path}" fill="none" stroke="var(--accent-2)" stroke-width="2.5"/>
-    <line x1="${x(nm)}" x2="${x(nm)}" y1="${pad / 2}" y2="${Hh - pad}" stroke="var(--warn)" stroke-width="2" stroke-dasharray="4 3"/>
+    <path d="${path} L${x(1440)},${Hh - pad} L${x(0)},${Hh - pad}Z" fill="var(--flats)" opacity=".18"/>
+    <path d="${path}" fill="none" stroke="var(--flats)" stroke-width="2.5"/>
+    <line x1="${x(nm)}" x2="${x(nm)}" y1="${pad / 2}" y2="${Hh - pad}" stroke="var(--coral)" stroke-width="2" stroke-dasharray="4 3"/>
     ${ticks}</svg>`;
 }
 
@@ -115,7 +120,7 @@ async function renderTrips() {
   urls.splice(0).forEach(u => URL.revokeObjectURL(u));
   let trips;
   try { trips = await store.listTrips(); } catch (e) { $('#trip-list').innerHTML = `<p class="bad">${esc(e.message)}</p>`; return; }
-  if (!trips.length) { $('#trip-list').innerHTML = '<p class="muted">No trips yet. Tap “New trip” to log one.</p>'; return; }
+  if (!trips.length) { $('#trip-list').innerHTML = `<div class="empty"><svg viewBox="0 0 120 60" aria-hidden="true"><path d="M10 30c18-22 52-26 78-6l20-14v40l-20-14c-26 20-60 16-78-6z"/><circle cx="34" cy="27" r="3"/></svg><p>No trips logged yet.<br>Tap <strong>New trip</strong> after your next time on the water.</p></div>`; return; }
   $('#trip-list').innerHTML = trips.map(t => {
     const sp = [...new Set((t.catches || []).map(c => byId(c.species)?.name || 'Other'))];
     const photos = (t.catches || []).filter(c => c.photoUrl).map(c => `<img src="${esc(c.photoUrl)}" alt="" loading="lazy">`).join('');

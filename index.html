@@ -3,16 +3,48 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0b4f6c">
-  <title>Tampa Bay Fishing Log</title>
+  <meta name="theme-color" content="#123c4a">
+  <title>James's Fishing Log</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600&display=swap">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <header class="top">
-    <h1>Tampa Bay Fishing Log</h1>
-    <select id="station" aria-label="Tide station"></select>
+  <header class="hero">
+    <svg class="scene" viewBox="0 0 400 170" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="var(--sky-top)"/><stop offset=".62" stop-color="var(--sky-mid)"/><stop offset="1" stop-color="var(--sky-low)"/>
+        </linearGradient>
+        <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="var(--sea-top)"/><stop offset="1" stop-color="var(--sea-deep)"/>
+        </linearGradient>
+      </defs>
+      <rect width="400" height="170" fill="url(#sky)"/>
+      <circle cx="300" cy="112" r="26" fill="var(--sun)"/>
+      <!-- Sunshine Skyway-style cable-stayed bridge -->
+      <g fill="none" stroke="var(--bridge)" stroke-width="1.1" opacity=".9">
+        <path d="M150 64 L110 112 M150 64 L120 112 M150 64 L130 112 M150 64 L140 112 M150 64 L160 112 M150 64 L170 112 M150 64 L180 112 M150 64 L190 112"/>
+        <path d="M250 64 L210 112 M250 64 L220 112 M250 64 L230 112 M250 64 L240 112 M250 64 L260 112 M250 64 L270 112 M250 64 L280 112 M250 64 L290 112"/>
+      </g>
+      <g fill="var(--bridge)">
+        <rect x="147" y="60" width="6" height="64"/><rect x="247" y="60" width="6" height="64"/>
+        <path d="M0 121 Q100 118 200 109 Q300 118 400 121 L400 124 Q300 121 200 112 Q100 121 0 124Z"/>
+      </g>
+      <rect y="124" width="400" height="46" fill="url(#sea)"/>
+      <path d="M0 132 q10 -3 20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0" stroke="var(--glint)" stroke-width="1.2" fill="none" opacity=".55"/>
+      <path d="M262 140 h76 M276 147 h48 M288 154 h24" stroke="var(--sun)" stroke-width="2" opacity=".55"/>
+    </svg>
+    <div class="hero-text">
+      <p class="eyebrow">Tampa Bay · Gulf Coast</p>
+      <h1>James's <span>Fishing Log</span></h1>
+      <label class="station-pick"><span>Tide station</span>
+        <select id="station"></select>
+      </label>
+    </div>
   </header>
 
   <main>
@@ -25,7 +57,7 @@
         <ul id="tide-list" class="plain"></ul>
       </div>
       <div class="card">
-        <h2>Moon &amp; solunar</h2>
+        <h2>Moon &amp; feeding times</h2>
         <div id="solunar"></div>
       </div>
       <div class="card">
@@ -38,8 +70,8 @@
     <!-- LOG -->
     <section id="view-log" class="view">
       <form id="auth-form" class="card hidden">
-        <h2>Sign in to see your trips</h2>
-        <p class="muted small">Your trips and photos are private and sync across your devices.</p>
+        <h2>Welcome back, James</h2>
+        <p class="muted small">Sign in to see your trips. They’re private and sync across your phone and computer.</p>
         <label>Email <input type="email" id="auth-email" autocomplete="email" required></label>
         <label>Password <input type="password" id="auth-password" autocomplete="current-password" minlength="6" required></label>
         <div class="row end">
@@ -97,9 +129,9 @@
   </main>
 
   <nav class="tabs">
-    <button data-view="today" class="active">Today</button>
-    <button data-view="log">My trips</button>
-    <button data-view="species">Species</button>
+    <button data-view="today" class="active"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 15c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2M2 20c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2"/><circle cx="12" cy="7" r="3"/></svg>Today</button>
+    <button data-view="log"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12c3-4.5 9-6 14-2l4-3v10l-4-3c-5 4-11 2.5-14-2z"/><circle cx="8" cy="11.5" r=".9" fill="currentColor"/></svg>My trips</button>
+    <button data-view="species"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3v9a4 4 0 1 1-8 0"/><path d="M6 12l-2-2"/><circle cx="14" cy="3" r="1"/></svg>Species</button>
   </nav>
 
   <template id="catch-template">
