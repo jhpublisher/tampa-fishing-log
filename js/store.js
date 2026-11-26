@@ -21,6 +21,14 @@ export const signIn = (email, password) => sb.auth.signInWithPassword({ email, p
 export const signUp = (email, password) => sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } });
 export const signOut = () => sb.auth.signOut();
 
+// Favorite tide stations live on the user's account (no extra table needed).
+export const getFavStations = () => user?.user_metadata?.favStations || [];
+export async function setFavStations(ids) {
+  if (!user) return;
+  const { data, error } = await sb.auth.updateUser({ data: { favStations: ids } });
+  if (!error && data?.user) user = data.user;
+}
+
 const fail = (error, what) => { if (error) throw new Error(`${what}: ${error.message}`); };
 
 // Adds short-lived photoUrl to each catch that has a stored photo.

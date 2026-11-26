@@ -40,7 +40,10 @@ body { margin: 0; font: 17px/1.5 var(--body); background: var(--sand); color: va
 .eyebrow { font: 600 .78rem/1.2 var(--label); text-transform: uppercase; letter-spacing: .14em; margin: 0; }
 .hero .eyebrow { color: #fde7c6; }
 .station-pick { display: flex; align-items: center; gap: 8px; margin: 0; color: #fff8ec; }
-.station-pick span { font: 600 .8rem var(--label); text-transform: uppercase; letter-spacing: .1em; white-space: nowrap; }
+.station-pick label { margin: 0; color: #fff8ec; font: 600 .8rem var(--label); text-transform: uppercase; letter-spacing: .1em; white-space: nowrap; }
+.fav-btn { flex: none; width: 44px; padding: 0; font-size: 1.35rem; line-height: 1; color: #fff8ec;
+  background: rgba(8, 24, 32, .55); border: 1px solid rgba(255, 248, 236, .35); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+.fav-btn[aria-pressed="true"] { color: var(--sun); border-color: var(--sun); }
 .station-pick select { flex: 1; min-width: 0; background: rgba(8, 24, 32, .55); color: #fff8ec;
   border: 1px solid rgba(255, 248, 236, .35); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
 

@@ -24,14 +24,35 @@ $$('.tabs button').forEach(b => b.onclick = () => show(b.dataset.view));
 
 // ---------- station ----------
 const stationSel = $('#station');
+// Favorites: saved on this phone, and on James's account when signed in.
+let favs = (() => { try { return JSON.parse(ls.get('favStations') || '[]'); } catch { return []; } })();
+const saveFavs = () => { ls.set('favStations', JSON.stringify(favs)); store.setFavStations(favs).catch(() => { }); };
+const opt = s => `<option value="${s.id}">${esc(s.name)}</option>`;
 const fillStations = () => {
-  const want = ls.get('station') || '8726520';
-  stationSel.innerHTML = STATIONS.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  const want = stationSel.value || ls.get('station') || '8726520';
+  const fav = favs.map(id => STATIONS.find(s => s.id === id)).filter(Boolean);
+  const rest = STATIONS.filter(s => !favs.includes(s.id));
+  stationSel.innerHTML = fav.length
+    ? `<optgroup label="★ Favorites">${fav.map(opt).join('')}</optgroup><optgroup label="All stations">${rest.map(opt).join('')}</optgroup>`
+    : STATIONS.map(opt).join('');
   stationSel.value = STATIONS.some(s => s.id === want) ? want : STATIONS[0].id;
+  updateFavBtn();
+};
+const favBtn = $('#fav-btn');
+function updateFavBtn() {
+  const on = favs.includes(stationSel.value);
+  favBtn.textContent = on ? '★' : '☆';
+  favBtn.setAttribute('aria-pressed', String(on));
+  favBtn.setAttribute('aria-label', on ? 'Remove this station from favorites' : 'Add this station to favorites');
+}
+favBtn.onclick = () => {
+  const id = stationSel.value;
+  favs = favs.includes(id) ? favs.filter(x => x !== id) : [...favs, id];
+  saveFavs(); fillStations();
 };
 fillStations();
 loadStations().then(fillStations);
-stationSel.onchange = () => { ls.set('station', stationSel.value); renderToday(); };
+stationSel.onchange = () => { ls.set('station', stationSel.value); updateFavBtn(); renderToday(); };
 const station = () => STATIONS.find(s => s.id === stationSel.value) || STATIONS[0];
 
 // ---------- today ----------
@@ -317,7 +338,15 @@ store.watchAuth(u => {
   $('#auth-form').classList.toggle('hidden', !!u);
   $('#trips-area').classList.toggle('hidden', !u);
   $('#who').textContent = u?.email || '';
-  if (u) { authMsg(''); if ($('#view-log').classList.contains('active')) renderTrips(); }
+  if (u) {
+    authMsg(''); if ($('#view-log').classList.contains('active')) renderTrips();
+    // Merge favorites from the account with any saved on this phone.
+    const remote = store.getFavStations();
+    const merged = [...new Set([...remote, ...favs])];
+    if (merged.length !== remote.length || merged.length !== favs.length) { favs = merged; saveFavs(); }
+    else favs = merged;
+    fillStations();
+  }
   else if ($('#view-trip').classList.contains('active')) show('log');
 });
 
