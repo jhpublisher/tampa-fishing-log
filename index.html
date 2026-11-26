@@ -3,7 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#123c4a">
+  <meta name="theme-color" content="#2a4f6e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="James Fishing">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
   <title>James's Fishing Log</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -137,7 +144,7 @@
         <label>Time <input type="time" name="time"></label>
       </div>
       <label class="check"><input type="checkbox" name="kept"> Kept</label>
-      <label>Photo <input type="file" name="photo" accept="image/*" capture="environment"></label>
+      <label>Photo <input type="file" name="photo" accept="image/*"></label>
       <img class="thumb hidden" alt="Catch photo">
       <div class="check-result small"></div>
     </fieldset>

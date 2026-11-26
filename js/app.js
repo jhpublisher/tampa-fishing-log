@@ -158,7 +158,7 @@ $('#gps-btn').onclick = () => {
   $('#coords-label').textContent = 'Finding you…';
   navigator.geolocation.getCurrentPosition(
     p => setPin(p.coords.latitude, p.coords.longitude, 14),
-    () => { $('#coords-label').textContent = 'Location blocked. Tap the map instead.'; },
+    () => { $('#coords-label').textContent = 'Location is off. On iPhone: Settings › Privacy & Security › Location Services › Safari Websites › While Using. Or tap the map.'; },
     { enableHighAccuracy: true, timeout: 15000 });
 };
 const alertBox = msg => { $('#coords-label').textContent = msg; };
@@ -208,6 +208,10 @@ function addCatchRow(c = {}) {
       $('[name=time]', fs).value = `${String(ex.time.getHours()).padStart(2, '0')}:${String(ex.time.getMinutes()).padStart(2, '0')}`;
     }
     if (ex.lat != null && editing.lat == null) setPin(ex.lat, ex.lng, 14);
+    // iPhones often strip location from photos; use where you are now instead.
+    else if (editing.lat == null && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(p => { if (editing.lat == null) setPin(p.coords.latitude, p.coords.longitude, 14); }, () => { }, { enableHighAccuracy: true, timeout: 15000 });
+    }
   };
   $('#catch-list').appendChild(fs);
   update();
