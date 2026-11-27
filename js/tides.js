@@ -85,7 +85,7 @@ export function flowAt(hilo, t) {
     if (x >= +a.t && x <= +b.t) {
       const f = (x - a.t) / (b.t - a.t);
       const range = Math.min(1, Math.abs(b.v - a.v) / 2); // ~2 ft is a big swing in Tampa Bay
-      return { flow: Math.sin(Math.PI * f) * (0.4 + 0.6 * range), dir: b.v > a.v ? 'rising' : 'falling' };
+      return { flow: Math.sin(Math.PI * f) * (0.4 + 0.6 * range), dir: b.v > a.v ? 'rising' : 'falling', phase: f };
     }
   }
   return { flow: 0, dir: '' };

@@ -8,6 +8,7 @@ import { SPOTS, km } from './spots.js';
 import { flowAt } from './tides.js';
 import { moonInfo, solunarDay } from './solunar.js';
 import { nearby, redTideAt } from './sightings.js';
+import { spotHistoryAt } from './spotnotes.js';
 
 const H = 3600e3;
 
@@ -44,6 +45,17 @@ const NEEDS = {
   spanish: ['bay', 'pass', 'pier', 'bridges', 'beach', 'nearshore'], cobia: ['nearshore', 'bay', 'bridges', 'pier', 'pass'],
 };
 const WATER = { beach: 'Gulf beaches', pass: 'passes', nearshore: 'Gulf reefs', pier: 'piers', bridges: 'bridges', bay: 'open bay' };
+// Does the tide right now match the tide a spot note says works? true / false / null (any, or no tide data)
+function tideMatch(want, flow) {
+  if (!want || want === 'any' || !flow?.dir) return null;
+  const f = flow.phase ?? 0.5, rising = flow.dir === 'rising';
+  if (want === 'incoming') return rising;
+  if (want === 'outgoing') return !rising;
+  if (want === 'moving') return flow.flow > 0.35;
+  if (want === 'high') return rising ? f > 0.7 : f < 0.3;
+  if (want === 'low') return rising ? f < 0.3 : f > 0.7;
+  return null;
+}
 export const TARGETS = SPECIES.filter(s => PROFILES[s.id]);
 // The model part is scaled to 70 at most. Evidence adds up to these, so real catches and reports win.
 const MODEL_WEIGHT = 0.7;
@@ -151,12 +163,26 @@ export function scoreSpecies(id, ctx, history = []) {
   const hereC = mine.filter(c => c.lat != null && km(c.lat, c.lng, lat, lng) < 3);
   const season = hereC.filter(c => Math.min(Math.abs(c.date.getMonth() + 1 - m), 12 - Math.abs(c.date.getMonth() + 1 - m)) <= 1).length;
   const bayC = mine.filter(c => Math.min(Math.abs(c.date.getMonth() + 1 - m), 12 - Math.abs(c.date.getMonth() + 1 - m)) <= 1).length;
+  const mineB = hereC.length ? Math.min(EVIDENCE.mine, 14 + hereC.length * 5 + season * 4) : 0;
   if (hereC.length) {
-    s += Math.min(EVIDENCE.mine, 14 + hereC.length * 5 + season * 4);
+    s += mineB;
     ev.push(`You've caught ${hereC.length} here${season ? `, ${season} this time of year` : ''}`);
   } else if (bayC) { s += Math.min(5, bayC * 1.5); ev.push(`You catch them this time of year`); }
 
+  // 1b. your spot history notes (fish you've caught here, good months, best tide): also top-weight
   let local = false;
+  const note = spotHistoryAt(lat, lng, 1.5).find(n => n.species?.includes(id));
+  if (note) {
+    local = true;
+    const monthOk = !note.months?.length || note.months.includes(m);
+    const tide = tideMatch(note.tide, ctx.flow);
+    let b = monthOk ? 22 : 8;
+    if (tide === true) b += 6; else if (tide === false) b -= 4;
+    s += Math.max(0, Math.min(b, 40 - mineB)); // catches plus notes top out at 40
+    const tl = { incoming: 'an incoming tide', outgoing: 'an outgoing tide', high: 'high tide', low: 'low tide', moving: 'moving water' }[note.tide];
+    ev.unshift(`Your notes: you catch them here${note.months?.length ? monthOk ? ' this time of year' : ', but usually in other months' : ''}${tide === true ? ` on ${tl}, like now` : tide === false ? `; best on ${tl}` : ''}`);
+  }
+
   // 2. local fishing reports (captains' reports and news) that name this area
   if (ctx.reports?.length) {
     const rs = ctx.reports.filter(r => r.species === id && ctx.t - r.date < 75 * 864e5 && r.date <= ctx.t);

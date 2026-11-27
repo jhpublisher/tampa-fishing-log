@@ -1,5 +1,5 @@
 // Caches the app shell so it opens without signal. Tide data still needs a connection.
-const C = 'fishlog-v29';
+const C = 'fishlog-v30';
 const SHELL = ['./', 'index.html', 'css/style.css', 'js/app.js', 'js/home.js', 'js/placesearch.js', 'js/tides.js', 'js/solunar.js', 'js/species.js', 'js/store.js', 'js/exif.js', 'js/guide.js', 'js/license.js', 'js/config.js', 'js/plan.js', 'js/recommend.js', 'js/spots.js', 'js/conditions.js', 'js/sightings.js', 'js/reportparse.js', 'js/catchcond.js', 'js/importer.js', 'js/spotnotes.js', 'js/voice.js', 'js/outbox.js', 'js/tips.js', 'vendor/supabase/supabase.js', 'icon.svg', 'images/hero.jpg', 'icons/icon-180.png', 'icons/icon-192.png', 'manifest.webmanifest', 'vendor/leaflet/leaflet.js', 'vendor/leaflet/leaflet.css', 'vendor/suncalc/suncalc.js'];
 self.addEventListener('install', e => e.waitUntil(caches.open(C).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting())));
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== C).map(k => caches.delete(k)))).then(() => self.clients.claim())));
