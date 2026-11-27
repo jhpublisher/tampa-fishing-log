@@ -12,11 +12,8 @@ const MAX_AGE_DAYS = 60;
 const SOURCES = [
   { name: 'Coastal Angler · Tampa Bay', area: 'Tampa Bay', type: 'rss',
     url: 'https://coastalanglermag.com/category/tampa-bay/tampa-bay-fishing-reports-forecasts/feed/' },
-  { name: 'Tampa Bay Beacons', area: 'Tampa Bay', type: 'wp', url: 'https://www.tampabaybeacons.com', search: 'fishin report', match: /fish/i },
+  { name: 'FOX 13 Friday report', area: 'Tampa Bay', type: 'rss', url: 'https://www.fox13news.com/rss/tags/science,wild-nature,fishing-report' },
   { name: "Hubbard's Marina", area: "John's Pass", type: 'wp', url: 'https://www.hubbardsmarina.com', search: 'fishing report', match: /report/i },
-  { name: 'Tampa Free Press', area: 'Gulf Coast', type: 'wp', url: 'https://www.tampafp.com', search: 'fishing report', match: /fishing report/i },
-  { name: 'r/floridafishing', area: 'Tampa · St. Pete · Clearwater', type: 'rss',
-    url: 'https://www.reddit.com/r/floridafishing/search.rss?q=tampa+OR+%22st+pete%22+OR+clearwater+OR+%22tampa+bay%22&restrict_sr=1&sort=new' },
 ];
 
 const decode = s => String(s || '')
@@ -40,15 +37,26 @@ async function wp(src) {
 }
 
 async function rss(src) {
-  const xml = await get(src.url);
+  const urls = [].concat(src.url), all = [], errs = [];
+  for (const u of urls) {
+    try { const got = await rssOne(u, src); console.log(`${u}: ${got.length} items, newest "${got[0]?.title || ''}" ${got[0]?.date?.toISOString?.() || ''}`); all.push(...got); }
+    catch (e) { console.log(`${u}: ${e.message}`); errs.push(e); }
+  }
+  if (!all.length && errs.length === urls.length) throw errs[0];
+  const seen = new Set();
+  return all.filter(x => !seen.has(x.url) && seen.add(x.url)).sort((a, b) => b.date - a.date);
+}
+
+async function rssOne(url, src) {
+  const xml = await get(url);
   const items = xml.match(/<item[\s>][\s\S]*?<\/item>/gi) || xml.match(/<entry[\s>][\s\S]*?<\/entry>/gi) || [];
-  return items.slice(0, 8).map(it => {
+  return items.slice(0, 100).map(it => {
     const atomLink = (it.match(/<link[^>]*href="([^"]+)"/i) || [])[1];
     return {
       title: decode(tag(it, 'title')),
       url: decode(tag(it, 'link')) || atomLink,
       date: new Date(decode(tag(it, 'pubDate') || tag(it, 'updated') || tag(it, 'published'))),
-      summary: src.url.includes('reddit.com') ? '' : teaser(tag(it, 'description') || tag(it, 'summary')),
+      summary: url.includes('reddit.com') ? '' : teaser(tag(it, 'description') || tag(it, 'summary')),
     };
   });
 }
@@ -60,7 +68,7 @@ for (const src of SOURCES) {
   try {
     const got = (await (src.type === 'wp' ? wp(src) : rss(src)))
       .filter(x => x.title && x.url && !isNaN(x.date) && +x.date > cutoff && (!src.match || src.match.test(x.title)));
-    got.slice(0, 4).forEach(x => items.push({ ...x, source: src.name, area: src.area }));
+    got.slice(0, src.name.startsWith('r/') ? 4 : 6).forEach(x => items.push({ ...x, source: src.name, area: src.area }));
     status.push({ source: src.name, ok: true, count: got.length });
   } catch (e) {
     // keep that source's last good items so one bad fetch doesn't blank the card
