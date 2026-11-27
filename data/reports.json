@@ -1,1 +1,64 @@
-{"updated":null,"items":[],"sources":[]}
+{
+ "updated": "2026-11-27T02:10:16.684Z",
+ "items": [
+  {
+   "title": "The life of the Redfish By: Capt. George Hastick",
+   "url": "https://coastalanglermag.com/the-life-of-the-redfish-by-capt-george-hastick/",
+   "date": "2026-11-01T08:55:26.000Z",
+   "summary": "The red drum is one of the most iconic sport fish in Tampa Bay. These resilient fish navigate a multi-stage …",
+   "source": "Coastal Angler · Tampa Bay",
+   "area": "Tampa Bay"
+  },
+  {
+   "title": "A Lesson Learned: A.I. By: Capt. TJ Shea",
+   "url": "https://coastalanglermag.com/a-lesson-learned-a-i-by-capt-tj-shea/",
+   "date": "2026-11-01T08:50:35.000Z",
+   "summary": "All the talk these days is about AI and the dangers that come with it. Rightfully so. But I never …",
+   "source": "Coastal Angler · Tampa Bay",
+   "area": "Tampa Bay"
+  },
+  {
+   "title": "New Port Richey Report By: Capt. Bill Rutherford",
+   "url": "https://coastalanglermag.com/new-port-richey-report-by-capt-bill-rutherford-18/",
+   "date": "2026-11-01T08:45:46.000Z",
+   "summary": "Cooler Weather, Hotter Fishing! Well, it looks like Mother Nature finally remembered what November is supposed to look like on …",
+   "source": "Coastal Angler · Tampa Bay",
+   "area": "Tampa Bay"
+  },
+  {
+   "title": "Capt. Sergio’s Corner By: Capt. Sergio Atanes",
+   "url": "https://coastalanglermag.com/capt-sergios-corner-by-capt-sergio-atanes-51/",
+   "date": "2026-11-01T08:40:03.000Z",
+   "summary": "Flounder–The Overlooked Fish Tampa Bay offers anglers a wide variety of species, including redfish, snook, trout, and cobia. As a …",
+   "source": "Coastal Angler · Tampa Bay",
+   "area": "Tampa Bay"
+  }
+ ],
+ "sources": [
+  {
+   "source": "Coastal Angler · Tampa Bay",
+   "ok": true,
+   "count": 8
+  },
+  {
+   "source": "Tampa Bay Beacons",
+   "ok": false,
+   "error": "Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON"
+  },
+  {
+   "source": "Hubbard's Marina",
+   "ok": true,
+   "count": 0
+  },
+  {
+   "source": "Tampa Free Press",
+   "ok": false,
+   "error": "HTTP 401"
+  },
+  {
+   "source": "r/floridafishing",
+   "ok": false,
+   "error": "HTTP 404"
+  }
+ ]
+}
