@@ -658,3 +658,16 @@ body[data-view="cards"] { background: #0b1d24; }
 /* the old holo sweep on tiles is replaced by the frames */
 .cc-card.t2:not(.x) .cc-im::after, .cc-card.t3:not(.x) .cc-im::after { content: none; }
 @media (prefers-reduced-motion: reduce) { .fr-ring, .fr-studs, .fr-foil, .fr i.gem, .fr b.st, .frw::before { animation: none !important; } }
+
+/* ---------- not caught yet: frosted mystery ---------- */
+.cc-frost { position: absolute; inset: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.cc-frost img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(6px) saturate(1.3); transform: scale(1.25); }
+.cc-frost::after { content: ""; position: absolute; inset: 0; background: linear-gradient(160deg, rgba(255, 255, 255, .25), rgba(255, 255, 255, .05) 50%, rgba(255, 255, 255, .18)); }
+.cc-frost .cc-sil { position: relative; width: 80%; }
+.cc-frost-q { position: relative; z-index: 2; font: 400 2rem/1 var(--display); color: rgba(255, 255, 255, .92); text-shadow: 0 0 12px var(--tierc, #9fb2b3); }
+.cc-big-im .cc-frost-q { font-size: 4.5rem; }
+.cc-card.x { --tierc: #6f8183; background: var(--tierc); box-shadow: 0 0 8px color-mix(in srgb, var(--tierc) 70%, transparent); }
+.cc-card.x.t1, .cc-big.x.t1 { --tierc: #2f8f8a; } .cc-card.x.t2, .cc-big.x.t2 { --tierc: #3b5fa8; } .cc-card.x.t3, .cc-big.x.t3 { --tierc: #c08a1e; }
+.cc-card.x .cc-nm { color: #c9d6d4; letter-spacing: 0; }
+.cc-big.x { background: var(--tierc, #6f8183); box-shadow: 0 0 24px color-mix(in srgb, var(--tierc, #6f8183) 60%, transparent); }
+.cc-clue { color: #f6d29a; }
