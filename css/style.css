@@ -467,3 +467,15 @@ html.big body { font-size: 20px; }
 .imp-quick { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
 .imp-photo .row select { flex: 1; min-width: 0; }
 .imp-foot { position: sticky; bottom: calc(70px + env(safe-area-inset-bottom)); z-index: 5; }
+
+/* type-to-filter fish picker */
+.fish-picker { position: relative; display: block; text-transform: none; letter-spacing: normal; font: 500 1rem var(--body); color: var(--ink); }
+.fish-picker .fp-input { width: 100%; padding-right: 36px; }
+.fish-picker .fp-clear { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); min-height: 32px; min-width: 32px; padding: 0; border: 0; background: none; color: var(--muted, #667); }
+.fish-picker .fp-list { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 2px); max-height: 300px; overflow-y: auto; margin: 0; padding: 4px 0; list-style: none; background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+.fish-picker .fp-opt { display: flex; flex-direction: column; padding: 8px 12px; cursor: pointer; font-weight: 500; }
+.fish-picker .fp-opt small { font-weight: 400; color: var(--muted, #667); }
+.fish-picker .fp-opt.on, .fish-picker .fp-opt:hover { background: rgba(0,0,0,.06); }
+.fish-picker .fp-free span { color: var(--gulf); }
+.fish-picker .fp-group { padding: 6px 12px 2px; font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted, #667); }
+.imp-more.fish-picker { flex: 1; min-width: 0; }

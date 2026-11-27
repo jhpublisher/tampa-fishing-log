@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600&display=swap">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=30">
+  <link rel="stylesheet" href="css/style.css?v=31">
 </head>
 <body data-view="today">
   <header class="hero">
@@ -303,10 +303,10 @@
   <template id="catch-template">
     <fieldset class="catch">
       <div class="row">
-        <label class="grow">Species <select name="species"></select></label>
+        <label class="grow">Species <span class="fp-host"></span><select name="species" hidden></select></label>
         <label class="count">How many <input type="number" name="count" min="1" step="1" value="1" inputmode="numeric"></label>
       </div>
-      <label class="other-name hidden">What fish? <input name="otherName" list="other-fish" placeholder="e.g. pinfish, grunt, catfish"></label>
+      <input type="hidden" name="otherName"><input type="hidden" name="fishId">
       <div class="rule small"></div>
       <div class="row">
         <label>Length (in) <input type="number" name="length" step="0.25" min="0" inputmode="decimal"></label>
@@ -354,7 +354,7 @@
   <script src="vendor/leaflet/leaflet.js"></script>
   <script src="vendor/suncalc/suncalc.js"></script>
   <script src="vendor/supabase/supabase.js"></script>
-  <script type="module" src="js/app.js?v=30"></script>
-  <script type="module" src="js/plan.js?v=30"></script>
+  <script type="module" src="js/app.js?v=31"></script>
+  <script type="module" src="js/plan.js?v=31"></script>
 </body>
 </html>

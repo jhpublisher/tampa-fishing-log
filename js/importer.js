@@ -4,6 +4,8 @@
 // species; anything Claude wasn't sure of is flagged for him to confirm.
 import { readExif } from './exif.js';
 import { SPECIES, byId } from './species.js';
+import { fishPicker } from './fishpicker.js';
+import { fishById } from './fishlist.js';
 import { SPOTS, km, nearestSpot } from './spots.js';
 import { conditionsAt } from './catchcond.js';
 import * as store from './store.js';
@@ -88,7 +90,11 @@ function applyTags() {
     if (!t) continue;
     p.claude = t;
     if (!p.touched) {
-      p.species = t.species === 'not_fish' ? '' : t.species || '';
+      // guide id, a fishlist id, or a plain name ("other" fish)
+      const f = !byId(t.species) && t.species !== 'not_fish' && t.species ? fishById(t.species) : null;
+      p.species = t.species === 'not_fish' ? '' : f || (t.species && !byId(t.species)) ? 'other' : t.species || '';
+      p.otherName = f ? f.name : p.species === 'other' ? t.otherName || (byId(t.species) ? '' : t.species) : '';
+      p.fishId = f ? f.id : '';
       p.skip = t.species === 'not_fish' || p.skip;
       p.conf = t.confidence === 'high' ? 'sure' : 'check';
     }
@@ -125,9 +131,9 @@ function render() {
   });
   $$('.imp-photo', list).forEach(card => {
     const p = photos.find(x => x.id === card.dataset.p);
-    const set = sp => { p.species = sp; p.conf = ''; p.touched = true; p.skip = false; render(); };
+    const set = (sp, otherName = '', fishId = '') => { p.species = sp; p.otherName = otherName; p.fishId = fishId; p.conf = ''; p.touched = true; p.skip = false; render(); };
     $$('[data-sp]', card).forEach(b => b.onclick = () => set(b.dataset.sp));
-    $('.imp-more', card).onchange = e => e.target.value && set(e.target.value);
+    fishPicker($('.imp-more', card), { value: QUICK.includes(p.species) ? {} : p, placeholder: 'Other fish: start typing…', onPick: v => v.species && set(v.species, v.otherName, v.fishId) });
     const ok = $('.imp-ok', card); if (ok) ok.onclick = () => { p.conf = ''; p.touched = true; render(); };
     $('.imp-skip', card).onclick = () => { p.skip = !p.skip; p.touched = true; render(); };
   });
@@ -140,7 +146,7 @@ function render() {
 }
 
 function photoCard(p) {
-  const sp = byId(p.species);
+  const sp = p.species === 'other' && p.otherName ? { name: p.otherName } : byId(p.species);
   const c = p.claude;
   const badge = p.skip ? '<span class="imp-badge skip">Skipped</span>'
     : p.conf === 'check' ? `<span class="imp-badge check">Claude thinks: ${esc(sp ? short(sp.name) : 'not sure')}${c?.note ? ` — ${esc(c.note)}` : ''}</span><button type="button" class="imp-ok small">✓ That's right</button>`
@@ -151,7 +157,7 @@ function photoCard(p) {
     <div class="imp-meta small">${nice(p.time)}${p.timeFromFile ? ' <span class="muted">(file time)</span>' : ''}${p.lat == null ? ' · <span class="muted">no GPS</span>' : ''}${p.dup ? ' · <span class="muted">already logged?</span>' : ''}</div>
     ${badge}
     <div class="imp-quick">${QUICK.map(id => `<button type="button" class="chip-btn${p.species === id ? ' on' : ''}" data-sp="${id}">${esc(short(byId(id).name).replace('Spotted seatrout', 'Trout').replace('Mangrove (gray) snapper', 'Mangrove'))}</button>`).join('')}</div>
-    <div class="row"><select class="imp-more"><option value="">Other fish…</option>${SPECIES.filter(s => !QUICK.includes(s.id)).map(s => `<option value="${s.id}"${p.species === s.id ? ' selected' : ''}>${esc(s.name)}</option>`).join('')}</select>
+    <div class="row"><span class="imp-more"></span>
       <button type="button" class="imp-skip">${p.skip ? 'Include' : 'Skip'}</button></div>
   </div>`;
 }
@@ -169,7 +175,7 @@ async function save(done) {
       const catches = [];
       for (const p of items) {
         const [photo, cond] = await Promise.all([store.shrinkPhoto(p.file), conditionsAt(lat, lng, p.time).catch(() => null)]);
-        catches.push({ species: p.species, length: null, weight: null, bait: '', time: hm(p.time), kept: false, photo, cond: cond ? { ...cond, key: `${+p.time}|${lat.toFixed(3)}|${lng.toFixed(3)}` } : null, voices: [], imported: true });
+        catches.push({ species: p.species, otherName: p.species === 'other' ? p.otherName || '' : '', fishId: p.species === 'other' ? p.fishId || '' : '', length: null, weight: null, bait: '', time: hm(p.time), kept: false, photo, cond: cond ? { ...cond, key: `${+p.time}|${lat.toFixed(3)}|${lng.toFixed(3)}` } : null, voices: [], imported: true });
       }
       const c0 = catches.find(c => c.cond)?.cond;
       const trip = {

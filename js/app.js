@@ -9,6 +9,7 @@ import { readExif } from './exif.js';
 import { pastWaterTemp } from './conditions.js';
 import { conditionsAt } from './catchcond.js';
 import { voiceWidget } from './voice.js';
+import { fishPicker } from './fishpicker.js';
 import { initImport, onOpen as importOpened } from './importer.js';
 import { syncSpotNotes } from './spotnotes.js';
 import * as outbox from './outbox.js';
@@ -128,7 +129,8 @@ function addCatchRow(c = {}) {
   sel.innerHTML = speciesOptions();
   sel.value = c.species || '';
   for (const k of ['length', 'weight', 'waterDepth', 'fishDepth']) $(`[name=${k}]`, fs).value = c[k] ?? '';
-  for (const k of ['bait', 'cast', 'setupText', 'time', 'otherName', 'angler']) $(`[name=${k}]`, fs).value = c[k] || '';
+  for (const k of ['bait', 'cast', 'setupText', 'time', 'otherName', 'fishId', 'angler']) $(`[name=${k}]`, fs).value = c[k] || '';
+  fs._fish = fishPicker($('.fp-host', fs), { value: c, onPick: v => { sel.value = v.species; $('[name=otherName]', fs).value = v.otherName; $('[name=fishId]', fs).value = v.fishId; sel.dispatchEvent(new Event('change')); } });
   $('[name=count]', fs).value = c.count || 1;
   $('[name=kept]', fs).checked = !!c.kept;
   $('[name=first]', fs).checked = !!c.first;
@@ -165,7 +167,6 @@ function addCatchRow(c = {}) {
 
   const update = () => {
     const sp = byId(sel.value);
-    $('.other-name', fs).classList.toggle('hidden', sel.value !== 'other');
     $('.rule', fs).textContent = sel.value === 'other' ? 'Not in the guide. Check FWC before you keep it.' : ruleText(sp);
     const res = $('.check-result', fs);
     if ($('[name=kept]', fs).checked && sp) {
@@ -276,7 +277,7 @@ $('#quick-catch').onclick = async () => {
   if (!existing) { const p = home.activePlace?.(); if (p && !form.spot.value) form.spot.value = p.name || ''; }
   const fs = addCatchRow({ time: new Date().toTimeString().slice(0, 5) });
   fs.scrollIntoView({ block: 'start' });
-  $('[name=species]', fs).focus();
+  fs._fish.focus();
 };
 $('#cancel-trip-btn').onclick = () => show('log');
 // Two taps to delete (no pop-up dialogs, which some browsers block).
@@ -312,6 +313,7 @@ form.onsubmit = async e => {
     catches: $$('#catch-list .catch').map(fs => ({
       species: $('[name=species]', fs).value,
       otherName: $('[name=species]', fs).value === 'other' ? $('[name=otherName]', fs).value.trim() : '',
+      fishId: $('[name=species]', fs).value === 'other' ? $('[name=fishId]', fs).value : '',
       count: Math.max(1, Math.round(+$('[name=count]', fs).value || 1)),
       first: $('[name=first]', fs).checked,
       angler: $('[name=angler]', fs).value.trim(),
