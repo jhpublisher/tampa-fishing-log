@@ -6,6 +6,8 @@ import { FISH, fishById } from './fishlist.js';
 import { GUIDE } from './guide.js';
 import * as store from './store.js';
 import * as outbox from './outbox.js';
+import { CLUE } from './clues.js';
+import { CARD_PHOTO } from './cardphotos.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -108,9 +110,9 @@ Object.assign(SIZE, { 'sand-seatrout': [12, 18], 'southern-kingfish': [12, 18], 
   'spinner-shark': [60, 90], 'bull-shark': [72, 110], 'lemon-shark': [72, 110], 'great-hammerhead': [96, 150] });
 function makeCard(key, group) {
   const sp = SPECIES.find(s => s.id === key);
-  if (sp) return { key, name: sp.name.replace(/ \(.*\)$/, ''), group, fg: group, guide: key, tier: GUIDE_TIER[key] ?? 1, shape: SHAPE[key], ref: GUIDE[key]?.photos?.[0]?.src };
+  if (sp) return { key, name: sp.name.replace(/ \(.*\)$/, ''), group, fg: group, guide: key, tier: GUIDE_TIER[key] ?? 1, shape: SHAPE[key], ref: GUIDE[key]?.photos?.[0]?.src, credit: GUIDE[key]?.photos?.[0] ? `${GUIDE[key].photos[0].by}, ${GUIDE[key].photos[0].lic}, iNaturalist` : '' };
   const f = fishById(key);
-  return f ? { key, name: f.name, group, fg: f.group, tier: TIER_OVERRIDE[key] ?? GROUP_TIER[f.group] ?? 1, shape: GROUP_SHAPE[f.group] } : null;
+  return f ? { key, name: f.name, group, fg: f.group, tier: TIER_OVERRIDE[key] ?? GROUP_TIER[f.group] ?? 1, shape: GROUP_SHAPE[f.group], ref: CARD_PHOTO[key]?.src, credit: CARD_PHOTO[key]?.credit || '' } : null;
 }
 const ALL = DECK.flatMap(([g, keys]) => keys.map(k => makeCard(k, g)).filter(Boolean));
 ALL.forEach((c, i) => { c.no = i + 1; });
@@ -183,7 +185,11 @@ function cardImg(c, s) {
   if (s?.photo) return `<img src="${esc(s.photo)}" alt="" loading="lazy">`;
   if (s && c.ref) return `<img src="${esc(c.ref)}" alt="" loading="lazy">`;
   if (s) return `<div class="cc-noimg">${silhouette(c.shape).replace('class="cc-sil"', 'class="cc-sil lit"')}</div>`;
-  return silhouette(c.shape);
+  return frosted(c);
+}
+// Not caught yet: a blurry photo behind frosted glass with a "?", glowing in the rarity color.
+function frosted(c) {
+  return `<span class="cc-frost">${c.ref ? `<img src="${esc(c.ref)}" alt="" loading="lazy">` : silhouette(c.shape)}<span class="cc-frost-q">?</span></span>`;
 }
 
 // Disco Diamond frame level 0-4: rarity, one step up for grade 9, top frame for grade 10.
@@ -200,7 +206,7 @@ function framed(c, s, inner) {
 function tile(c) {
   const s = state.stats.get(c.key);
   return `<button type="button" class="cc-card t${c.tier}${s ? '' : ' x'}" data-key="${esc(c.key)}" aria-label="${s ? esc(c.name) : 'Not caught yet'}">
-    <span class="cc-in"><span class="cc-im">${framed(c, s, cardImg(c, s))}${slab(gradeOf(c, s), 1, s?.lenEst)}</span><span class="cc-nm">${s ? esc(c.name) : '? ? ?'}</span></span></button>`;
+    <span class="cc-in"><span class="cc-im">${framed(c, s, cardImg(c, s))}${slab(gradeOf(c, s), 1, s?.lenEst)}</span><span class="cc-nm">${esc(c.name)}</span></span></button>`;
 }
 
 function render() {
@@ -323,18 +329,19 @@ function openCard(key, from) {
   const label = s ? `<div class="cc-label"><div><span class="cc-label-k">Bay Grade · #${String(c.no).padStart(3, '0')}</span><strong>${esc(c.name)}</strong>
       <span class="cc-label-s">${s.len ? `Best ${s.lenEst ? '~' : ''}${s.len}"${s.lenEst ? ' (est.)' : ''} · ` : ''}typical ${ty}", trophy ${tr}"+</span></div>${g ? slab(g, 0, s.lenEst) : '<span class="cc-grade none"><b>–</b><small>Add length</small></span>'}</div>` : '';
   const back = s ? `${label}
-    <div class="cc-big-im">${framed(c, s, cardImg(c, s))}${!s.photo ? '<span class="cc-tag">Guide photo · add yours on My trips</span>' : ''}</div>
+    <div class="cc-big-im">${framed(c, s, cardImg(c, s))}${!s.photo && c.ref ? `<span class="cc-tag">Sample photo${c.credit ? ' © ' + esc(c.credit) : ''} · add yours on My trips</span>` : ''}</div>
     <div class="cc-big-row"><div><span class="cc-kicker">#${String(c.no).padStart(3, '0')} · ${esc(c.group)}</span><h2>${esc(c.name)}</h2></div><span class="cc-rar t${c.tier}">${TIERS[c.tier]}</span></div>
     <div class="cc-stats"><span>${s.count}<small>Caught</small></span><span>${lenTxt(s)}<small>Best</small></span><span>${s.wt ? s.wt + ' lb' : '—'}<small>Heaviest</small></span></div>
     ${g ? `<p class="cc-first cc-why">${esc(slot)}Grade ${g} of 10 for a ${s.lenEst ? 'roughly ' : ''}${s.len}" fish${s.lenEst ? ' (estimated; add the real length on My trips to firm it up)' : ''}: ${g >= 9 ? 'a true wall-hanger.' : g >= 7 ? 'well above a typical keeper.' : g >= 5 ? 'about a typical keeper.' : 'on the small side. Bigger ones are out there.'}</p>` : ''}
     <p class="cc-first">⭐ First caught ${esc(fmtDate(s.first))}${s.firstSpot ? ' at ' + esc(s.firstSpot) : ''} · ${s.trips.size} trip${s.trips.size > 1 ? 's' : ''}</p>`
     : `
-    <div class="cc-big-im dark">${silhouette(c.shape)}</div>
+    <div class="cc-big-im dark">${frosted(c)}${c.credit ? `<span class="cc-tag">Photo © ${esc(c.credit)}</span>` : ''}</div>
     <div class="cc-big-row"><div><span class="cc-kicker">#${String(c.no).padStart(3, '0')} · ${esc(c.group)}</span><h2>${esc(c.name)}</h2></div><span class="cc-rar t${c.tier}">${TIERS[c.tier]}</span></div>
+    ${CLUE[c.key] ? `<p class="cc-first cc-clue">🔎 <b>Clue:</b> ${esc(CLUE[c.key])}</p>` : ''}
     <p class="cc-first">Not caught yet. Log one on <b>My trips</b> to unlock this card.</p>`;
   dlg.querySelector('.cc-big').className = `cc-big t${c.tier}${s ? '' : ' x'}`;
   dlg.querySelector('.cc-face.back').innerHTML = back + `<div class="cc-acts">${c.guide ? `<button type="button" data-guide="${esc(c.guide)}">Species guide</button>` : ''}<button type="button" class="cc-close">Close</button></div>`;
-  dlg.querySelector('.cc-face.front').innerHTML = `<span class="cc-im">${s ? framed(c, s, cardImg(c, s)) : silhouette(c.shape)}</span><span class="cc-nm">${s ? esc(c.name) : '? ? ?'}</span>`;
+  dlg.querySelector('.cc-face.front').innerHTML = `<span class="cc-im">${s ? framed(c, s, cardImg(c, s)) : frosted(c)}</span><span class="cc-nm">${esc(c.name)}</span>`;
   const card = dlg.querySelector('.cc-flip'), big = dlg.querySelector('.cc-big');
   card.classList.remove('shake');
   stopSpin(); setAngle(0); spin.v = 0; spin.power = shine(c, s);
