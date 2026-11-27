@@ -87,20 +87,25 @@ export function redTideAt(samples, lat, lng, radius = 12) {
 }
 
 // ---------- local reports ----------
+// Link-outs for sources with no public feed (or whose terms don't allow pulling content in).
 export const REPORT_LINKS = [
-  { name: 'Tampa Bay Times outdoors', note: 'Weekly saltwater fishing report', url: 'https://www.tampabay.com/sports/outdoors/' },
-  { name: 'FOX 13 fishing report', note: 'Friday report from local captains', url: 'https://www.fox13news.com/tag/science/wild-nature/fishing-report' },
+  { name: 'Captain Experiences · Tampa Bay', note: 'Fresh trip reports from local guides (Tampa, St. Pete, Clearwater)', url: 'https://captainexperiences.com/fishing-reports/locations/regions/tampa-bay' },
   { name: 'FishingBooker Tampa Bay', note: 'Charter captains’ trip reports', url: 'https://fishingbooker.com/reports/destination/us/tampa-bay' },
+  { name: 'FOX 13 fishing report', note: 'Friday report from local captains', url: 'https://www.fox13news.com/tag/science/wild-nature/fishing-report' },
   { name: 'Florida Sportsman', note: 'West Central weekend forecast', url: 'https://www.floridasportsman.com/editorial/forecasts-west-central/402040' },
+  { name: 'Tampa Bay Times outdoors', note: 'Weekly saltwater fishing report', url: 'https://www.tampabay.com/sports/outdoors/' },
+  { name: 'r/floridafishing', note: 'Reddit posts about Tampa, St. Pete and Clearwater', url: 'https://www.reddit.com/r/floridafishing/search/?q=tampa%20OR%20%22st%20pete%22%20OR%20clearwater&restrict_sr=1&sort=new' },
   { name: 'FWC red tide status', note: 'Official statewide map, updated Wed and Fri', url: 'https://myfwc.com/research/redtide/statewide/' },
 ];
 
-// Latest Hubbard's Marina (John's Pass) report headline: {title, date, url} or null.
-export async function latestHubbards() {
-  try {
-    const j = await fetch('https://www.hubbardsmarina.com/wp-json/wp/v2/posts?search=fishing%20report&per_page=1&_fields=date,link,title').then(r => r.json());
-    const p = j[0]; if (!p) return null;
-    const t = document.createElement('textarea'); t.innerHTML = p.title.rendered; // decode entities
-    return { title: t.value, date: new Date(p.date), url: p.link };
-  } catch { return null; }
+// Latest report headlines, gathered every 3 hours by .github/workflows/reports.yml.
+// Read from GitHub directly so new headlines show up without waiting for a site redeploy.
+export async function latestReports() {
+  for (const u of ['https://raw.githubusercontent.com/jhpublisher/tampa-fishing-log/main/data/reports.json', 'data/reports.json']) {
+    try {
+      const j = await fetch(u, { cache: 'no-cache' }).then(r => { if (!r.ok) throw 0; return r.json(); });
+      return (j.items || []).map(x => ({ ...x, date: new Date(x.date) }));
+    } catch {}
+  }
+  return null;
 }

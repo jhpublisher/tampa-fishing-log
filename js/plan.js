@@ -6,7 +6,7 @@ import { addSpotAt, place, activePlace, dropProbe } from './home.js';
 import { estimateWaterTemp, latestWaterTemp, typicalTemp, windForecast, windAt, windCells, windCellAt, spotWind, windLimit, setWindLimit } from './conditions.js';
 import { TARGETS, makeContext, rankSpecies, findWindows, catchHistory } from './recommend.js';
 import * as store from './store.js';
-import { recentSightings, redTideSamples, redTideAt, REPORT_LINKS, latestHubbards } from './sightings.js';
+import { recentSightings, redTideSamples, redTideAt, REPORT_LINKS, latestReports } from './sightings.js';
 import { byId, closesText, daysToClose } from './species.js';
 import { TIPS } from './tips.js';
 
@@ -222,11 +222,16 @@ $('#recent').onsubmit = e => { e.preventDefault(); showRecent(); };
 
 // ---------- local fishing reports ----------
 (async () => {
-  const el = $('#reports-list');
-  el.innerHTML = REPORT_LINKS.map(r => `<li><a href="${esc(r.url)}" target="_blank" rel="noopener"><strong>${esc(r.name)}</strong></a><span class="muted">${esc(r.note)}</span></li>`).join('');
-  const h = await latestHubbards();
-  if (!h) return;
-  const age = Math.floor((Date.now() - h.date) / DAY);
-  const stale = age > 14; // an old report goes to the bottom and says how old it is
-  el.insertAdjacentHTML(stale ? 'beforeend' : 'afterbegin', `<li><a href="${esc(h.url)}" target="_blank" rel="noopener"><strong>${esc(h.title)}</strong></a><span class="muted">John’s Pass party boats · ${fmtDay(h.date)}${stale ? ` · ${age >= 60 ? `${Math.round(age / 30)} months` : `${Math.round(age / 7)} weeks`} old` : ''}</span></li>`);
+  const el = $('#reports-list'), more = $('#reports-more');
+  more.innerHTML = REPORT_LINKS.map(r => `<li><a href="${esc(r.url)}" target="_blank" rel="noopener"><strong>${esc(r.name)}</strong></a><span class="muted">${esc(r.note)}</span></li>`).join('');
+  el.innerHTML = '<li class="muted">Loading the latest reports…</li>';
+  const items = await latestReports();
+  if (!items?.length) { el.innerHTML = '<li class="muted">No new headlines right now. Try the sites below.</li>'; return; }
+  el.innerHTML = items.slice(0, 8).map(x => {
+    const age = Math.floor((Date.now() - x.date) / DAY);
+    const when = age <= 0 ? 'today' : age === 1 ? 'yesterday' : age < 14 ? `${age} days ago` : fmtDay(x.date);
+    return `<li><a href="${esc(x.url)}" target="_blank" rel="noopener"><strong>${esc(x.title)}</strong></a>
+      ${x.summary ? `<span>${esc(x.summary)}</span>` : ''}
+      <span class="muted">${esc(x.source)} · ${when}</span></li>`;
+  }).join('');
 })();
