@@ -15,6 +15,7 @@ import { syncSpotNotes } from './spotnotes.js';
 import * as outbox from './outbox.js';
 import { TIPS, SAFETY } from './tips.js';
 import * as cards from './collection.js';
+import { estLen } from './collection.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -147,6 +148,15 @@ function addCatchRow(c = {}) {
   ];
   fs._setup = c.setup instanceof Blob ? c.setup : null; fs._setupPath = c.setupPath || null;
   fs._cond = c.cond || null;
+  fs._est = c.estLength ? { estLength: c.estLength, estFrom: c.estFrom || 'claude', estNote: c.estNote || '' } : {};
+  const showEst = () => {
+    const el = $('.est-len', fs), lenIn = $('[name=length]', fs);
+    const cur = { species: sel.value, otherName: $('[name=otherName]', fs).value, fishId: $('[name=fishId]', fs).value, estLength: fs._est.estLength };
+    const L = !lenIn.value && sel.value ? estLen(cur) : null;
+    lenIn.placeholder = L ? `est. ${L}` : '';
+    el.innerHTML = L ? `<span class="est-tag">Est.</span> ~${L}" ${fs._est.estLength ? `from the photo${fs._est.estNote ? ` (${esc(fs._est.estNote)})` : ''}` : 'typical size'}, so it still gets a grade. <button type="button" class="linkish est-use">Use ${L}"</button> or type the real length.` : '';
+    const use = $('.est-use', fs); if (use) use.onclick = () => { lenIn.value = L; lenIn.dispatchEvent(new Event('input')); };
+  };
   fs._voice = voiceWidget($('.catch-voice', fs), c.voices || [], 'Voice note');
   const setupImg = $('.setup-thumb', fs);
   const showPhotos = () => {
@@ -178,6 +188,7 @@ function addCatchRow(c = {}) {
       res.textContent = out?.msg || ''; res.className = `check-result small ${out?.level || ''}`;
     } else res.textContent = '';
   };
+  sel.addEventListener('change', showEst); $('[name=length]', fs).addEventListener('input', showEst); showEst();
   sel.onchange = update; $('[name=length]', fs).oninput = update; $('[name=kept]', fs).onchange = update; $('[name=count]', fs).oninput = update;
   $('.remove-catch', fs).onclick = () => {
     // easy to hit by accident with wet hands, so ask before throwing away a filled-in catch
@@ -320,6 +331,7 @@ form.onsubmit = async e => {
       first: $('[name=first]', fs).checked,
       angler: $('[name=angler]', fs).value.trim(),
       length: +$('[name=length]', fs).value || null,
+      ...fs._est,
       weight: +$('[name=weight]', fs).value || null,
       bait: $('[name=bait]', fs).value.trim(),
       cast: $('[name=cast]', fs).value.trim(),

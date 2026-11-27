@@ -47,8 +47,16 @@ export function grade(len, size) {
   return Math.max(1, Math.min(10, Math.round(g)));
 }
 const sizeOf = c => SIZE[c.key] || GROUP_SIZE[c.group] || [16, 30];
+// A catch with no measured length still grades: Claude's photo estimate if there is one,
+// else the fish's typical length. Shown with "est." so it's clear it wasn't measured.
+export function typicalLen(c) {
+  const k = cardKey(c), card = k && ALL.find(x => x.key === k);
+  return card ? sizeOf(card)[0] : (c.species === 'other' || !c.species ? 16 : null);
+}
+export const estLen = c => c.length ? null : (c.estLength || typicalLen(c));
 const gradeOf = (c, s) => grade(s?.len, sizeOf(c));
-const slab = (g, small) => g ? `<span class="cc-grade${small ? ' sm' : ''} g${g}"><b>${g}</b>${small ? '' : `<small>${GRADE_NAME[g]}</small>`}</span>` : '';
+const slab = (g, small, est) => g ? `<span class="cc-grade${small ? ' sm' : ''} g${g}${est ? ' est' : ''}"><b>${g}</b>${small ? (est ? '<i>est</i>' : '') : `<small>${GRADE_NAME[g]}${est ? ' · est.' : ''}</small>`}</span>` : '';
+const lenTxt = s => s.len ? `${s.lenEst ? '~' : ''}${s.len} in${s.lenEst ? ' est.' : ''}` : '—';
 
 // Fish shapes for the "?" cards: [body height, forked tail]
 const SHAPE = {
@@ -96,15 +104,18 @@ function tally(trips) {
   for (const t of trips) for (const c of t.catches || []) {
     const k = cardKey(c); if (!k) continue;
     let s = st.get(k);
-    if (!s) st.set(k, s = { count: 0, len: 0, wt: 0, first: null, firstSpot: '', photo: null, photoLen: -1, name: c.otherName, trips: new Set(), dates: [] });
+    if (!s) st.set(k, s = { count: 0, len: 0, real: 0, est: 0, lenEst: false, wt: 0, first: null, firstSpot: '', photo: null, photoLen: -1, name: c.otherName, trips: new Set(), dates: [] });
     s.count += c.count || 1; s.trips.add(t.id);
-    if (c.length > s.len) s.len = c.length;
+    // measured lengths win over estimates
+    const L = c.length || estLen(c) || 0;
+    if (c.length > s.real) s.real = c.length; else if (!c.length && L > s.est) s.est = L;
+    s.len = s.real || s.est; s.lenEst = !s.real && !!s.est;
     if (c.weight > s.wt) s.wt = c.weight;
     const d = t.date || '';
     if (d && (!s.first || d < s.first)) { s.first = d; s.firstSpot = t.spot || ''; }
     s.dates.push({ d, time: c.time || t.start || '', spot: t.spot || '' });
     // card photo: the biggest fish that has a photo, else the latest photo
-    if (c.photoUrl && ((c.length || 0) > s.photoLen || !s.photo)) { s.photo = c.photoUrl; s.photoLen = c.length || 0; }
+    if (c.photoUrl && (L > s.photoLen || !s.photo)) { s.photo = c.photoUrl; s.photoLen = L; }
   }
   return st;
 }
@@ -119,7 +130,7 @@ function badges(stats, trips) {
   const sameDaySlam = trips.some(t => SLAM.every(k => (t.catches || []).some(c => c.species === k)));
   const night = trips.some(t => (t.catches || []).some(c => { const tm = c.time || t.start || ''; const h = +tm.slice(0, 2); return tm && (h >= 21 || h < 4); }));
   const total = [...stats.values()].reduce((a, s) => a + s.count, 0);
-  const big = [...stats.values()].some(s => s.len >= 30);
+  const big = [...stats.values()].some(s => s.real >= 30);
   const reef = caught.filter(k => ['Groupers & sea basses', 'Snappers', 'Reef & deep water', 'Porgies & grunts', 'Triggerfish & filefish'].includes(groupOf(k)) || ['redgrouper', 'gag', 'hogfish', 'mangrove'].includes(k)).length;
   const sharks = caught.some(k => groupOf(k) === 'Sharks' || k === 'blacktip');
   const trophy = caught.some(k => ALL.find(c => c.key === k)?.tier === 3);
@@ -152,7 +163,7 @@ function cardImg(c, s) {
 function tile(c) {
   const s = state.stats.get(c.key);
   return `<button type="button" class="cc-card t${c.tier}${s ? '' : ' x'}" data-key="${esc(c.key)}" aria-label="${s ? esc(c.name) : 'Not caught yet'}">
-    <span class="cc-in"><span class="cc-im">${cardImg(c, s)}${slab(gradeOf(c, s), 1)}</span><span class="cc-nm">${s ? esc(c.name) : '? ? ?'}</span></span></button>`;
+    <span class="cc-in"><span class="cc-im">${cardImg(c, s)}${slab(gradeOf(c, s), 1, s?.lenEst)}</span><span class="cc-nm">${s ? esc(c.name) : '? ? ?'}</span></span></button>`;
 }
 
 function render() {
@@ -167,11 +178,11 @@ function render() {
   if (newest) {
     const s = stats.get(newest.key);
     html += `<button type="button" class="cc-feat t${newest.tier}" data-key="${esc(newest.key)}">
-      <span class="cc-feat-in"><span class="cc-feat-im">${cardImg(newest, s)}${slab(gradeOf(newest, s), 1)}</span>
+      <span class="cc-feat-in"><span class="cc-feat-im">${cardImg(newest, s)}${slab(gradeOf(newest, s), 1, s?.lenEst)}</span>
       <span class="cc-feat-row"><span><span class="cc-kicker">Newest card</span><strong>${esc(newest.name)}</strong>
         <span class="cc-sub">First caught ${esc(fmtDate(s.first))}${s.firstSpot ? ' · ' + esc(s.firstSpot) : ''}</span></span>
         <span class="cc-rar t${newest.tier}">${TIERS[newest.tier]}</span></span>
-      <span class="cc-stats"><span>${s.count}<small>Caught</small></span><span>${s.len ? s.len + ' in' : '—'}<small>Best</small></span><span>${s.wt ? s.wt + ' lb' : '—'}<small>Heaviest</small></span></span></span></button>`;
+      <span class="cc-stats"><span>${s.count}<small>Caught</small></span><span>${lenTxt(s)}<small>Best</small></span><span>${s.wt ? s.wt + ' lb' : '—'}<small>Heaviest</small></span></span></span></button>`;
   } else if (state.loaded) {
     html += `<div class="cc-empty">Log a catch on <b>My trips</b> and its card shows up here. Tap any “?” card to see what it is.</div>`;
   }
@@ -269,12 +280,12 @@ function openCard(key, from) {
   const g = gradeOf(c, s), [ty, tr] = sizeOf(c), rule = c.guide ? byId(c.guide) : null;
   const slot = rule?.min && rule?.max ? `Legal slot ${rule.min}–${rule.max}". ` : rule?.min ? `Legal min ${rule.min}". ` : '';
   const label = s ? `<div class="cc-label"><div><span class="cc-label-k">Bay Grade · #${String(c.no).padStart(3, '0')}</span><strong>${esc(c.name)}</strong>
-      <span class="cc-label-s">${s.len ? `Best ${s.len}" · ` : ''}typical ${ty}", trophy ${tr}"+</span></div>${g ? slab(g) : '<span class="cc-grade none"><b>–</b><small>Add length</small></span>'}</div>` : '';
+      <span class="cc-label-s">${s.len ? `Best ${s.lenEst ? '~' : ''}${s.len}"${s.lenEst ? ' (est.)' : ''} · ` : ''}typical ${ty}", trophy ${tr}"+</span></div>${g ? slab(g, 0, s.lenEst) : '<span class="cc-grade none"><b>–</b><small>Add length</small></span>'}</div>` : '';
   const back = s ? `${label}
     <div class="cc-big-im">${cardImg(c, s)}${!s.photo ? '<span class="cc-tag">Guide photo · add yours on My trips</span>' : ''}</div>
     <div class="cc-big-row"><div><span class="cc-kicker">#${String(c.no).padStart(3, '0')} · ${esc(c.group)}</span><h2>${esc(c.name)}</h2></div><span class="cc-rar t${c.tier}">${TIERS[c.tier]}</span></div>
-    <div class="cc-stats"><span>${s.count}<small>Caught</small></span><span>${s.len ? s.len + ' in' : '—'}<small>Best</small></span><span>${s.wt ? s.wt + ' lb' : '—'}<small>Heaviest</small></span></div>
-    ${g ? `<p class="cc-first cc-why">${esc(slot)}Grade ${g} of 10 for a ${s.len}" fish: ${g >= 9 ? 'a true wall-hanger.' : g >= 7 ? 'well above a typical keeper.' : g >= 5 ? 'about a typical keeper.' : 'on the small side. Bigger ones are out there.'}</p>` : ''}
+    <div class="cc-stats"><span>${s.count}<small>Caught</small></span><span>${lenTxt(s)}<small>Best</small></span><span>${s.wt ? s.wt + ' lb' : '—'}<small>Heaviest</small></span></div>
+    ${g ? `<p class="cc-first cc-why">${esc(slot)}Grade ${g} of 10 for a ${s.lenEst ? 'roughly ' : ''}${s.len}" fish${s.lenEst ? ' (estimated; add the real length on My trips to firm it up)' : ''}: ${g >= 9 ? 'a true wall-hanger.' : g >= 7 ? 'well above a typical keeper.' : g >= 5 ? 'about a typical keeper.' : 'on the small side. Bigger ones are out there.'}</p>` : ''}
     <p class="cc-first">⭐ First caught ${esc(fmtDate(s.first))}${s.firstSpot ? ' at ' + esc(s.firstSpot) : ''} · ${s.trips.size} trip${s.trips.size > 1 ? 's' : ''}</p>`
     : `
     <div class="cc-big-im dark">${silhouette(c.shape)}</div>

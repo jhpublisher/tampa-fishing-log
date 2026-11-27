@@ -97,6 +97,7 @@ function applyTags() {
       p.fishId = f ? f.id : '';
       p.skip = t.species === 'not_fish' || p.skip;
       p.conf = t.confidence === 'high' ? 'sure' : 'check';
+      if (+t.length_in > 0) { p.estLength = Math.round(+t.length_in); p.estNote = [t.length_confidence && `${t.length_confidence} confidence`, t.length_note].filter(Boolean).join(', '); }
     }
   }
 }
@@ -135,6 +136,7 @@ function render() {
     $$('[data-sp]', card).forEach(b => b.onclick = () => set(b.dataset.sp));
     fishPicker($('.imp-more', card), { value: QUICK.includes(p.species) ? {} : p, placeholder: 'Other fish: start typing…', onPick: v => v.species && set(v.species, v.otherName, v.fishId) });
     const ok = $('.imp-ok', card); if (ok) ok.onclick = () => { p.conf = ''; p.touched = true; render(); };
+    const li = $('.imp-len', card); li.oninput = () => { p.length = +li.value || null; };
     $('.imp-skip', card).onclick = () => { p.skip = !p.skip; p.touched = true; render(); };
   });
   const todo = needsWork().length, n = photos.filter(p => !p.skip).length, missing = groups.filter(g => g.items.some(p => !p.skip) && !groupWhere(g)).length;
@@ -157,6 +159,7 @@ function photoCard(p) {
     <div class="imp-meta small">${nice(p.time)}${p.timeFromFile ? ' <span class="muted">(file time)</span>' : ''}${p.lat == null ? ' · <span class="muted">no GPS</span>' : ''}${p.dup ? ' · <span class="muted">already logged?</span>' : ''}</div>
     ${badge}
     <div class="imp-quick">${QUICK.map(id => `<button type="button" class="chip-btn${p.species === id ? ' on' : ''}" data-sp="${id}">${esc(short(byId(id).name).replace('Spotted seatrout', 'Trout').replace('Mangrove (gray) snapper', 'Mangrove'))}</button>`).join('')}</div>
+    <label class="imp-len-l small">Length (in) <input type="number" class="imp-len" step="0.25" min="0" inputmode="decimal" value="${p.length || ''}" placeholder="${p.estLength ? `est. ${p.estLength}` : 'optional'}">${p.estLength ? ` <span class="est-tag">Est. ~${p.estLength}"</span>${p.estNote ? ` <span class="muted">${esc(p.estNote)}</span>` : ''}` : ''}</label>
     <div class="row"><span class="imp-more"></span>
       <button type="button" class="imp-skip">${p.skip ? 'Include' : 'Skip'}</button></div>
   </div>`;
@@ -175,7 +178,7 @@ async function save(done) {
       const catches = [];
       for (const p of items) {
         const [photo, cond] = await Promise.all([store.shrinkPhoto(p.file), conditionsAt(lat, lng, p.time).catch(() => null)]);
-        catches.push({ species: p.species, otherName: p.species === 'other' ? p.otherName || '' : '', fishId: p.species === 'other' ? p.fishId || '' : '', length: null, weight: null, bait: '', time: hm(p.time), kept: false, photo, cond: cond ? { ...cond, key: `${+p.time}|${lat.toFixed(3)}|${lng.toFixed(3)}` } : null, voices: [], imported: true });
+        catches.push({ species: p.species, otherName: p.species === 'other' ? p.otherName || '' : '', fishId: p.species === 'other' ? p.fishId || '' : '', length: p.length || null, ...(p.estLength ? { estLength: p.estLength, estFrom: 'claude', estNote: p.estNote || '' } : {}), weight: null, bait: '', time: hm(p.time), kept: false, photo, cond: cond ? { ...cond, key: `${+p.time}|${lat.toFixed(3)}|${lng.toFixed(3)}` } : null, voices: [], imported: true });
       }
       const c0 = catches.find(c => c.cond)?.cond;
       const trip = {
