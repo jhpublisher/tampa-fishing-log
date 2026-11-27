@@ -28,7 +28,11 @@ export function solunarDay(date, lat, lng) {
     if (a < lo.a) lo = { t, a };
   }
   const mt = SC().getMoonTimes(d0, lat, lng);
-  const majors = [hi.t, lo.t].filter(Boolean).map(t => ({ kind: 'major', label: +t === +hi.t ? 'Moon overhead' : 'Moon underfoot', start: new Date(+t - H), end: new Date(+t + H), center: t }));
+  // A high/low point at the day's edge means the moon didn't actually transit that day.
+  const edge = t => t && (+t === +d0 || +t >= +d0 + 24 * H - 5 * 60e3);
+  if (edge(hi.t)) hi.t = null;
+  if (edge(lo.t)) lo.t = null;
+  const majors = [hi.t, lo.t].filter(Boolean).map(t => ({ kind: 'major', label: hi.t && +t === +hi.t ? 'Moon overhead' : 'Moon underfoot', start: new Date(+t - H), end: new Date(+t + H), center: t }));
   const minors = [['Moonrise', mt.rise], ['Moonset', mt.set]].filter(([, t]) => t)
     .map(([label, t]) => ({ kind: 'minor', label, start: new Date(+t - H / 2), end: new Date(+t + H / 2), center: t }));
   const sun = SC().getTimes(new Date(+d0 + 12 * H), lat, lng);
@@ -59,12 +63,12 @@ export function forecast(start, days, lat, lng, hilo, { from = 0, to = 24 } = {}
     const day = solunarDay(d, lat, lng);
     const moon = moonInfo(new Date(+d + 12 * H));
     const hours = [];
-    for (let h = from; h < Math.min(24, to + 2); h += 0.5) {
+    for (let h = from; h <= Math.min(24, to + 2); h += 0.5) {
       const t = new Date(+d + h * H);
       hours.push({ t, s: scoreAt(t, day, moon, hilo) });
     }
-    // 2-hour rolling windows
-    const win = hours.slice(0, -3).map((x, k) => ({ start: x.t, s: (hours[k].s + hours[k + 1].s + hours[k + 2].s + hours[k + 3].s) / 4 }));
+    // 2-hour rolling windows: average the 5 half-hour samples from start to end
+    const win = hours.slice(0, -4).map((x, k) => ({ start: x.t, s: hours.slice(k, k + 5).reduce((a, b) => a + b.s, 0) / 5 }));
     win.sort((a, b) => b.s - a.s);
     const best = [];
     for (const w of win) {

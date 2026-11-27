@@ -1,4 +1,4 @@
-// Fishing license card on My trips, plus an expiry reminder on Today.
+// Fishing license card on the License tab, with an expiry reminder above it.
 import * as store from './store.js';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -21,7 +21,7 @@ function expiryBadge(lic) {
   return '<span class="status open">Valid</span>';
 }
 
-// Reminder shown on Today when the license is expired or within 30 days.
+// Reminder shown on the License tab when the license is expired or within 30 days.
 export function renderReminder() {
   const el = $('#license-reminder'); if (!el) return;
   const lic = store.getLicense(), n = daysLeft(lic);

@@ -60,7 +60,8 @@ export async function estimateWaterTemp(lat, lng, date) {
   const live = await latestWaterTemp(lat, lng);
   if (!live) return { temp: typicalTemp(date), source: 'typical for the date' };
   const days = Math.max(0, (date - now) / DAY);
-  if (days < 1 && date > now - DAY) return { temp: live.temp, source: 'live NOAA reading' };
+  const age = (now - live.t) / 3600e3;
+  if (days < 1 && date > now - DAY) return { temp: live.temp, source: age > 3 ? `NOAA reading, ${Math.round(age)} h old` : 'live NOAA reading' };
   const anomaly = live.temp - typicalTemp(now);
   return { temp: typicalTemp(date) + anomaly * Math.exp(-days / 10), source: days > 14 ? 'typical for the date' : 'NOAA reading, projected' };
 }

@@ -265,6 +265,7 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; min-
 .lic-permits { border: 1px solid var(--line); border-radius: 10px; padding: 4px 12px 8px; margin: 10px 0; }
 .lic-permits legend { font: 600 .85rem var(--label); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 0 4px; }
 .lic-permits .check { text-transform: none; letter-spacing: 0; font: 500 1rem var(--body); color: var(--ink); margin: 0; }
+[hidden] { display: none !important; }
 .lic-reminder { display: grid; gap: 2px; margin-bottom: 14px; padding: 12px 14px; border-radius: 12px;
   background: color-mix(in srgb, var(--warn) 14%, var(--card)); border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); }
 .lic-reminder strong { color: var(--warn); }
@@ -355,7 +356,8 @@ details { margin-top: 8px; } summary { cursor: pointer; color: var(--flats); fon
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 .reports li { flex-direction: column; gap: 2px; }
-.reports a { color: inherit; }
+.reports a { color: inherit; display: block; padding: 10px 0 2px; } /* bigger tap target */
+.check input[type=checkbox] { width: 24px; height: 24px; flex: none; }
 #recent-map { height: 300px; }
 
 /* ---------- catch extras: setup photo, voice notes, conditions ---------- */
