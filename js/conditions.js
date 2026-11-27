@@ -87,6 +87,46 @@ export function windForecast() {
   return windCache;
 }
 
+// ---------- wind at each spot (Open-Meteo hourly, 7 days, with gusts) ----------
+// Cached per ~11 km grid cell. Each value is [{start, end, mph, gust, deg, dir}] or null if it couldn't load.
+const cellWind = new Map();
+const cellKey = (lat, lng) => `${(Math.round(lat * 10) / 10).toFixed(1)},${(Math.round(lng * 10) / 10).toFixed(1)}`;
+const compass = d => Object.keys(DIRS)[Math.round((((d % 360) + 360) % 360) / 22.5) % 16];
+function parseCell(j) {
+  const h = j?.hourly; if (!h?.time) return null;
+  return h.time.map((t, i) => ({
+    start: new Date(t * 1000), end: new Date((t + 3600) * 1000),
+    mph: Math.round(h.wind_speed_10m[i]), gust: Math.round(h.wind_gusts_10m[i]),
+    deg: h.wind_direction_10m[i], dir: compass(h.wind_direction_10m[i]),
+  }));
+}
+// points: [[lat, lng], ...] -> Map(cellKey -> hourly wind or null). One request per 50 new cells.
+export async function windCells(points) {
+  const keys = [...new Set(points.map(([a, b]) => cellKey(a, b)))];
+  const fresh = keys.filter(k => !cellWind.has(k));
+  for (let i = 0; i < fresh.length; i += 50) {
+    const chunk = fresh.slice(i, i + 50);
+    const q = `latitude=${chunk.map(k => k.split(',')[0]).join(',')}&longitude=${chunk.map(k => k.split(',')[1]).join(',')}`;
+    const all = fetch(`https://api.open-meteo.com/v1/forecast?${q}&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=mph&forecast_days=7&timeformat=unixtime`)
+      .then(r => r.json()).then(j => (Array.isArray(j) ? j : [j]).map(parseCell))
+      .catch(() => { chunk.forEach(k => cellWind.delete(k)); return null; }); // try again next time
+    chunk.forEach((k, n) => cellWind.set(k, all.then(a => a?.[n] ?? null)));
+  }
+  return new Map(await Promise.all(keys.map(async k => [k, await cellWind.get(k)])));
+}
+export const windCellAt = (cells, lat, lng) => cells?.get(cellKey(lat, lng)) || null;
+export async function spotWind(lat, lng) { return windCellAt(await windCells([[lat, lng]]), lat, lng); }
+
+// Your own wind limit in mph (kept on this phone). Above it, spots and days get marked down.
+export const WIND_LIMIT_DEFAULT = 20;
+export function windLimit() {
+  try { const v = +localStorage.getItem('windLimit'); return v >= 5 && v <= 40 ? v : WIND_LIMIT_DEFAULT; } catch { return WIND_LIMIT_DEFAULT; }
+}
+export function setWindLimit(v) {
+  try { localStorage.setItem('windLimit', String(v)); } catch { }
+  document.dispatchEvent(new Event('wind-limit'));
+}
+
 export function windAt(periods, t) {
   return periods.find(p => t >= p.start && t < p.end) || null;
 }

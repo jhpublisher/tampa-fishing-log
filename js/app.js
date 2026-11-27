@@ -1,7 +1,7 @@
 import { getHiLo, heightAt, flowAt, nearestStation } from './tides.js';
 import { moonInfo } from './solunar.js';
 import * as home from './home.js';
-import { SPECIES, byId, ruleText, checkKeep, isOpen, RULES_AS_OF } from './species.js';
+import { SPECIES, byId, ruleText, checkKeep, isOpen, RULES_AS_OF, daysToClose, closesText } from './species.js';
 import { GUIDE, lookAlikes } from './guide.js';
 import * as license from './license.js';
 import * as store from './store.js';
@@ -282,7 +282,9 @@ const seasonText = sp => sp.open ? 'Open ' + sp.open.map(([m1, d1, m2, d2]) => `
 function statusChip(sp) {
   if (sp.cr) return '<span class="status cr">Catch &amp; release only</span>';
   if (sp.unreg) return '<span class="status open">No species limits</span>';
-  return isOpen(sp) ? '<span class="status open">Open now</span>' : '<span class="status closed">Closed now</span>';
+  if (!isOpen(sp)) return '<span class="status closed">Closed now</span>';
+  const n = daysToClose(sp);
+  return n != null ? `<span class="status cr">${closesText(n)}</span>` : '<span class="status open">Open now</span>';
 }
 function speciesCard(sp) {
   const g = GUIDE[sp.id] || { id: [], photos: [], marks: [] };

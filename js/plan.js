@@ -3,11 +3,11 @@ import { getHiLo, nearestStation, loadStations } from './tides.js';
 import { SPOTS, spotById, nearestSpot, CATS, catOf } from './spots.js';
 import { spotCombo, saveLoc, refPoint } from './placesearch.js';
 import { addSpotAt, place, activePlace } from './home.js';
-import { estimateWaterTemp, latestWaterTemp, typicalTemp, windForecast, windAt } from './conditions.js';
+import { estimateWaterTemp, latestWaterTemp, typicalTemp, windForecast, windAt, windCells, windCellAt, spotWind, windLimit, setWindLimit } from './conditions.js';
 import { TARGETS, makeContext, rankSpecies, findWindows, catchHistory } from './recommend.js';
 import * as store from './store.js';
 import { recentSightings, redTideSamples, redTideAt, REPORT_LINKS, latestHubbards } from './sightings.js';
-import { byId } from './species.js';
+import { byId, closesText, daysToClose } from './species.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -23,7 +23,15 @@ async function history() {
 const tidesFor = (spot, start, days) => getHiLo(nearestStation(spot.lat, spot.lng).id, start, days).catch(() => null);
 const status = (el, msg) => { el.innerHTML = `<p class="muted small">${esc(msg)}</p>`; };
 const bar = v => `<div class="bar"><span style="width:${v}%"></span></div>`;
-const legal = r => r.cr ? '<span class="tag">Catch &amp; release</span>' : r.closed ? '<span class="tag bad">Closed, release only</span>' : '';
+const legal = r => r.cr ? '<span class="tag">Catch &amp; release</span>' : r.closed ? '<span class="tag bad">Closed, release only</span>' : r.closing ? `<span class="tag warn">${closesText(r.closing, r.at)}</span>` : '';
+const coldNote = t => t < 60 ? `<p class="small warn">Water is ${Math.round(t)}°F. Fish are cold-stressed: fish slow, release gently, and leave fish crowded in warm-water outflows alone. FWC can close fisheries after a cold kill.</p>` : '';
+
+// wind limit picker (shared with Today, kept on this phone)
+const windSel = $('#plan-wind');
+const fillWind = () => { windSel.innerHTML = [10, 12, 15, 18, 20, 22, 25, 30].map(v => `<option value="${v}" ${v === windLimit() ? 'selected' : ''}>${v} mph</option>`).join(''); };
+fillWind();
+windSel.onchange = () => setWindLimit(+windSel.value);
+document.addEventListener('wind-limit', fillWind);
 
 // ---------- form setup ----------
 const spotSel = $('#plan-spot'), spSel = $('#plan-species');
@@ -80,7 +88,8 @@ $('#plan-what').onsubmit = async e => {
   if (isNaN(t)) return status(out, 'Pick a date and time.');
   status(out, 'Checking tides, water temp and wind…');
   await loadStations();
-  const [hilo, wt, wind, hist, sightings, redtide] = await Promise.all([tidesFor(spot, t, 1), estimateWaterTemp(spot.lat, spot.lng, t), windForecast(), history(), recentSightings(30), redTideSamples()]);
+  const [hilo, wt, bayWind, here, hist, sightings, redtide] = await Promise.all([tidesFor(spot, t, 1), estimateWaterTemp(spot.lat, spot.lng, t), windForecast(), spotWind(spot.lat, spot.lng), history(), recentSightings(30), redTideSamples()]);
+  const wind = here?.length ? here : bayWind;
   const w = windAt(wind, t);
   const ctx = makeContext(spot, t, { hilo, wind: w, temp: wt.temp, sightings, redtide });
   const ranked = rankSpecies(ctx, hist);
@@ -88,11 +97,12 @@ $('#plan-what').onsubmit = async e => {
   out.innerHTML = `
     <div class="chips">
       <span class="chip">🌡 ${Math.round(wt.temp)}°F water <span class="muted">(${esc(wt.source)})</span></span>
-      ${w ? `<span class="chip">💨 ${w.mph} mph ${esc(w.dir)}</span>` : `<span class="chip muted">Wind: ${wind.length ? 'no forecast this far out' : 'forecast unavailable'}</span>`}
+      ${w ? `<span class="chip ${w.mph > windLimit() ? 'warn' : ''}">💨 ${w.mph}${w.gust ? `–${w.gust}` : ''} mph ${esc(w.dir)}</span>` : `<span class="chip muted">Wind: ${wind.length ? 'no forecast this far out' : 'forecast unavailable'}</span>`}
       ${ctx.flow ? `<span class="chip">${ctx.flow.dir === 'rising' ? '↑' : '↓'} Tide ${ctx.flow.dir}</span>` : '<span class="chip muted">Tide unavailable</span>'}
       <span class="chip">${ctx.moon.icon} ${esc(ctx.moon.name)}</span>
       ${redChip(ctx.redtide)}
     </div>
+    ${coldNote(wt.temp)}
     ${top.map((r, i) => `
       <div class="pick">
         <div class="pick-head"><span class="rank">${i + 1}</span><strong>${esc(r.name)}</strong>${legal(r)}<span class="score">${r.score}</span></div>
@@ -101,7 +111,7 @@ $('#plan-what').onsubmit = async e => {
         ${r.tip ? `<div class="small muted">Tip: ${esc(r.tip)}</div>` : ''}
       </div>`).join('')}
     <details><summary class="small">All species</summary>
-      <ul class="plain small">${rest.map(r => `<li><span>${esc(r.name)} ${r.closed ? '(closed)' : ''}</span><span>${r.score}</span></li>`).join('')}</ul>
+      <ul class="plain small">${rest.map(r => `<li><span>${esc(r.name)} ${r.closed ? '(closed)' : r.closing ? `(${closesText(r.closing, r.at).replace('Closes', 'closes')})` : ''}</span><span>${r.score}</span></li>`).join('')}</ul>
     </details>`;
 };
 
@@ -115,23 +125,28 @@ $('#plan-where').onsubmit = async e => {
   const pool = SPOTS.filter(s => !s.osm);
   const stations = [...new Set(pool.map(s => nearestStation(s.lat, s.lng).id))];
   const hiloBy = new Map(await Promise.all(stations.map(async sid => [sid, await getHiLo(sid, start, days).catch(() => null)])));
-  const [wind, hist, live, sightings, redtide] = await Promise.all([windForecast(), history(), latestWaterTemp(27.77, -82.63), recentSightings(30), redTideSamples()]);
+  const [wind, cells, hist, live, sightings, redtide] = await Promise.all([windForecast(), windCells(pool.map(s => [s.lat, s.lng])), history(), latestWaterTemp(27.77, -82.63), recentSightings(30), redTideSamples()]);
   const anomaly = live ? live.temp - typicalTemp(start) : 0;
   const inputs = new Map(pool.map(s => [s.id, {
     hilo: hiloBy.get(nearestStation(s.lat, s.lng).id),
+    wind: windCellAt(cells, s.lat, s.lng),
     temp: d => typicalTemp(d) + anomaly * Math.exp(-Math.max(0, (d - start) / DAY) / 10),
   }]));
   await new Promise(r => setTimeout(r, 0)); // let the status message paint
-  const best = findWindows(id, start, days, inputs, wind, hist, { sightings, redtide });
+  const [from, to] = $('#plan-when').value.split('-').map(Number);
+  const best = findWindows(id, start, days, inputs, wind, hist, { sightings, redtide }, 5, { from, to });
+  const perSpot = [...cells.values()].some(Boolean);
   const name = TARGETS.find(s => s.id === id).name;
   if (!best.length) return status(out, 'No good windows found.');
   out.innerHTML = `
-    <p class="small muted">Water ${live ? `${Math.round(live.temp)}°F now (NOAA)` : 'temp from typical values'}${wind.length ? ', wind from the NWS forecast' : ', no wind forecast loaded'}${sightings ? (n => `, ${n} recent iNaturalist sighting${n === 1 ? '' : 's'}`)(sightings.filter(x => x.species === id).length) : ''}${redtide ? ', red tide from FWC' : ''}.</p>
+    <p class="small muted">Water ${live ? `${Math.round(live.temp)}°F now (NOAA)` : 'temp from typical values'}${perSpot ? ', wind and gusts for each spot (Open-Meteo)' : wind.length ? ', wind from the NWS forecast' : ', no wind forecast loaded'}, your wind limit ${windLimit()} mph${sightings ? (n => `, ${n} recent iNaturalist sighting${n === 1 ? '' : 's'}`)(sightings.filter(x => x.species === id).length) : ''}${redtide ? ', red tide from FWC' : ''}.</p>
     ${best.some(r => r.closed || r.backup?.closed) ? `<p class="small warn">${esc(name)} is closed to harvest on ${best[0].closed ? 'these dates' : 'some of these dates'}. Catch and release only.</p>` : ''}
+    ${(n => n != null ? `<p class="small warn">${esc(name)} season ${closesText(n).replace('Closes', 'closes')}. Windows on or after that day are catch and release only.</p>` : '')(daysToClose(byId(id), new Date()))}
+    ${live ? coldNote(live.temp) : ''}
     ${best.map((r, i) => `
       <div class="pick">
         <div class="pick-head"><span class="rank">${i + 1}</span><strong>${esc(r.spot.name)}</strong>${r.closed ? '<span class="status closed">Closed</span>' : ''}<span class="score">${r.score}</span></div>
-        <div class="small"><strong>${fmtDay(r.start)}, ${fmtTime(r.start)}–${fmtTime(r.end)}</strong>${r.wind ? ` · ${r.wind.mph} mph ${esc(r.wind.dir)}` : ''}</div>
+        <div class="small"><strong>${fmtDay(r.start)}, ${fmtTime(r.start)}–${fmtTime(r.end)}</strong>${r.wind ? ` · <span class="${r.windy ? 'warn' : ''}">${r.wind.mph}${r.wind.gust ? `–${r.wind.gust}` : ''} mph ${esc(r.wind.dir)}</span>` : ''}</div>
         ${bar(r.score)}
         <div class="small">${esc(r.why.join(' · '))}</div>
         ${r.backup ? `<div class="small muted">Backup: ${fmtDay(r.backup.start)}, ${fmtTime(r.backup.start)}–${fmtTime(r.backup.end)} (${r.backup.score})${r.backup.closed ? ' · closed that day' : ''}</div>` : ''}

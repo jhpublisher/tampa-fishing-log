@@ -1,7 +1,8 @@
 // Rule-based recommendations: which species to target at a spot and time, and where/when to fish for a species.
 // Each species gets a 0-100 score from water temp, season, habitat, tide, light, solunar and wind,
 // plus a bonus from your own catch log. Tune the PROFILES table to change the advice.
-import { SPECIES, byId, isOpen } from './species.js';
+import { SPECIES, byId, isOpen, daysToClose } from './species.js';
+import { windLimit } from './conditions.js';
 import { SPOTS, km } from './spots.js';
 import { flowAt } from './tides.js';
 import { moonInfo, solunarDay } from './solunar.js';
@@ -44,6 +45,18 @@ function tempFit([lo, il, ih, hi], t) {
 
 // Context for one spot and time. tides: hilo array (or null). wind: {mph, dir} (or null). temp: °F.
 // sightings: recent iNaturalist sightings (or null). redtide: FWC samples (or null).
+// Wind you'd actually feel at a spot: open water and Gulf-facing spots get it all (more in a west wind),
+// mangrove creeks, rivers and docks are partly sheltered.
+export function feltWind(spot, w) {
+  if (!w) return null;
+  const t = spot.tags || [];
+  const open = spot.boat || ['pass', 'beach', 'nearshore', 'bay'].some(x => t.includes(x));
+  const tucked = !open && ['river', 'mangroves', 'docks'].some(x => t.includes(x));
+  let f = open ? 1 : tucked ? 0.6 : 0.85;
+  if (spot.lng < -82.72 && w.deg >= 200 && w.deg <= 340) f *= 1.15; // onshore wind on the Gulf side
+  return Math.round(w.mph * f);
+}
+
 export function makeContext(spot, t, { hilo, wind, temp, day, sightings, redtide }) {
   day = day || solunarDay(t, spot.lat, spot.lng);
   const flow = hilo ? flowAt(hilo, t) : null;
@@ -63,7 +76,7 @@ export function catchHistory(trips) {
 
 export function scoreSpecies(id, ctx, history = []) {
   const p = PROFILES[id], sp = byId(id), why = [];
-  const cold = ctx.temp < 64;
+  const cold = ctx.temp < 64, frigid = ctx.temp < 60;
   const m = ctx.t.getMonth() + 1;
 
   // water temp: 30
@@ -83,7 +96,8 @@ export function scoreSpecies(id, ctx, history = []) {
   // habitats are listed best first, so earlier matches count more
   const hit = p.habitat.filter(x => tags.includes(x));
   const fit = hit.length ? 1 - 0.1 * p.habitat.indexOf(hit[0]) + 0.05 * Math.min(2, hit.length - 1) : 0;
-  if (coldHit) { s += 25; why.push('winter hangout'); }
+  if (coldHit && frigid && tags.includes('warm')) { s += 8; why.push('cold-stressed fish crowd warm water here, so go easy'); }
+  else if (coldHit) { s += 25; why.push('winter hangout'); }
   else if (hit.length) { s += (cold && p.cold ? 14 : 25) * Math.min(1, fit); why.push(hit.slice(0, 2).join(' and ')); }
   else if (cold && p.cold) s += 0;
   if (p.boat && !ctx.spot.boat && !tags.includes('pass') && !tags.includes('pier')) s -= 10;
@@ -101,11 +115,17 @@ export function scoreSpecies(id, ctx, history = []) {
   if (ctx.toLight <= 1.5) why.push(ctx.night ? 'low light' : 'dawn/dusk bite');
   if (ctx.sol) { s += 3; why.push(`solunar ${ctx.sol.kind}`); }
 
-  // wind: 5
+  // wind: 5, or a big penalty over the limit (yours, or lower for open-water species)
+  let windy = false;
   if (ctx.wind) {
-    const lim = p.windMax ?? 22;
-    if (ctx.wind.mph <= lim) s += 5;
-    else { s -= Math.min(15, (ctx.wind.mph - lim) * 1.5); why.push(`${ctx.wind.mph} mph wind`); }
+    const felt = feltWind(ctx.spot, ctx.wind), mine = windLimit(), lim = Math.min(p.windMax ?? 22, mine);
+    const gusty = ctx.wind.gust ? ` (gusts ${ctx.wind.gust})` : '';
+    if (felt <= lim) { s += felt <= lim - 5 ? 5 : 2; if (ctx.wind.mph > lim) why.push(`sheltered from the ${ctx.wind.mph} mph wind`); }
+    else {
+      windy = true;
+      s -= Math.min(30, 10 + (felt - lim) * 2);
+      why.push(`${ctx.wind.mph} mph ${ctx.wind.dir}${gusty}${felt > ctx.wind.mph ? ' blows straight in here' : ''}: ${lim === mine ? `over your ${mine} mph limit` : 'too rough for this fish'}`);
+    }
   } else s += 3;
 
   // your catch log: up to +15
@@ -125,19 +145,24 @@ export function scoreSpecies(id, ctx, history = []) {
   if (ctx.redtide?.level >= 3) { s -= 25; why.push(`${ctx.redtide.label} red tide nearby`); }
   else if (ctx.redtide?.level === 2) { s -= 10; why.push('low red tide nearby'); }
 
+  // cold-stress mode: under 60°F, tropical fish are struggling, so don't push them
+  if (frigid && ['snook', 'tarpon'].includes(id)) { s -= 15; why.push('cold-stressed: release gently or leave them be'); }
+
   const score = Math.max(0, Math.min(100, Math.round(s)));
   const closed = !sp.cr && !isOpen(sp, ctx.t);
-  return { id, name: sp.name, score, why, closed, cr: !!sp.cr, tip: p.tide };
+  return { id, name: sp.name, score, why, closed, closing: closed ? null : daysToClose(sp, ctx.t), at: ctx.t, cr: !!sp.cr, windy, coldStress: frigid, tip: p.tide };
 }
 
 // Feature 1: best species for a spot and time.
 export function rankSpecies(ctx, history) {
-  return TARGETS.map(s => scoreSpecies(s.id, ctx, history)).sort((a, b) => b.score - a.score);
+  // fish you can keep come first; closed species drop to the bottom whatever their score
+  return TARGETS.map(s => scoreSpecies(s.id, ctx, history)).sort((a, b) => a.closed - b.closed || b.score - a.score);
 }
 
 // Feature 2: best spot and 2-hour windows for one species over the next `days` days.
 // getInputs(spot) -> {hilo, temp(date)}; wind: NWS periods.
-export function findWindows(id, start, days, inputs, wind, history, extra = {}, pick = 5) {
+// hours: {from, to} = window start hours to consider (default 5am-8pm).
+export function findWindows(id, start, days, inputs, wind, history, extra = {}, pick = 5, hours = { from: 5, to: 20 }) {
   const all = [];
   for (const spot of SPOTS) {
     const inp = inputs.get(spot.id);
@@ -146,23 +171,28 @@ export function findWindows(id, start, days, inputs, wind, history, extra = {}, 
       const d0 = new Date(start); d0.setHours(0, 0, 0, 0); d0.setDate(d0.getDate() + d);
       const day = solunarDay(d0, spot.lat, spot.lng);
       const temp = inp.temp(d0);
-      for (let h = 5; h <= 20; h++) {
+      for (let h = hours.from; h <= hours.to; h++) {
         const t = new Date(+d0 + (h + 1) * H); // middle of a 2-hour window starting at h
         if (t < start) continue;
-        const w = wind.find(p => t >= p.start && t < p.end) || null;
+        const w = (inp.wind || wind).find(p => t >= p.start && t < p.end) || null;
         const r = scoreSpecies(id, makeContext(spot, t, { hilo: inp.hilo, wind: w, temp, day, ...extra }), history);
         all.push({ ...r, spot, start: new Date(+d0 + h * H), end: new Date(+d0 + (h + 2) * H), wind: w });
       }
     }
   }
-  all.sort((a, b) => b.score - a.score || a.start - b.start);
-  // best window at each spot, plus that spot's best window on a different day as a backup
+  all.sort((a, b) => a.closed - b.closed || b.score - a.score || a.start - b.start);
+  // best window at each spot, plus that spot's best window on a different day as a backup.
+  // First pass allows at most 2 picks in the same time slot, so the list offers real choices.
   const out = [];
-  for (const r of all) {
-    if (out.length === pick) break;
-    if (out.some(o => o.spot.id === r.spot.id)) continue;
-    r.backup = all.find(o => o.spot.id === r.spot.id && o.start.toDateString() !== r.start.toDateString()) || null;
-    out.push(r);
-  }
-  return out;
+  const take = maxSame => {
+    for (const r of all) {
+      if (out.length === pick) break;
+      if (out.some(o => o.spot.id === r.spot.id)) continue;
+      if (out.filter(o => +o.start === +r.start).length >= maxSame) continue;
+      r.backup = all.find(o => o.spot.id === r.spot.id && o.start.toDateString() !== r.start.toDateString()) || null;
+      out.push(r);
+    }
+  };
+  take(2); take(Infinity);
+  return out.sort((a, b) => a.closed - b.closed || b.score - a.score);
 }
