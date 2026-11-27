@@ -155,22 +155,36 @@ export function nearestSpot(lat, lng) {
 // type: shore | wade | kayak | boat. Habitat tags come from the nearest listed spot when it's close,
 // otherwise from the type.
 export const SPOT_TYPES = { shore: 'Shore', wade: 'Wade', kayak: 'Kayak', boat: 'Boat' };
-const TYPE_TAGS = { shore: ['docks', 'beach', 'mangroves'], wade: ['flats', 'mangroves', 'oysters'], kayak: ['flats', 'mangroves', 'oysters'], boat: ['bay', 'flats', 'bridges'] };
-function tagsFor(lat, lng, type) {
+// Habitats James can pick for his own spots (the same tags the species scores use).
+export const HABITATS = { docks: 'Docks & canals', mangroves: 'Mangroves', flats: 'Grass flats', oysters: 'Oyster bars', river: 'River or creek',
+  bridges: 'Bridge', pier: 'Pier', bay: 'Open bay or channel', beach: 'Gulf beach', pass: 'Pass or inlet', warm: 'Warm-water outflow', nearshore: 'Gulf reef' };
+// Inner-bay defaults by how you fish it. No beach or pass unless you say so.
+const TYPE_TAGS = { shore: ['docks', 'mangroves', 'flats'], wade: ['flats', 'mangroves', 'oysters'], kayak: ['flats', 'mangroves', 'oysters'], boat: ['bay', 'flats', 'docks'] };
+// Gulf side of the barrier islands (Anclote to Longboat): roughly west of this longitude for the latitude.
+const gulfSide = (lat, lng) => lat > 27.4 && lat < 28.25 && lng < (lat > 28.0 ? -82.80 : lat > 27.85 ? -82.82 : lat > 27.68 ? -82.74 : -82.70);
+// Best guess at a point's habitat. Copies a listed spot only when it's very close, and keeps
+// beach, pass and reef tags only on the Gulf side, so inner-bay canals don't get surf fish.
+export function inferTags(lat, lng, type = 'shore') {
   let best = null, bd = Infinity;
   for (const s of SPOTS) if (!s.custom && !s.osm) { const d = km(lat, lng, s.lat, s.lng); if (d < bd) { bd = d; best = s; } }
-  return bd < 6 ? best.tags : TYPE_TAGS[type] || TYPE_TAGS.shore;
+  const gulf = gulfSide(lat, lng);
+  let tags = bd < 1.5 ? [...best.tags] : [...(TYPE_TAGS[type] || TYPE_TAGS.shore)];
+  if (!gulf || bd > 0.8) tags = tags.filter(t => !['beach', 'pass', 'nearshore'].includes(t));
+  if (gulf && bd > 1.5) tags.push('beach');
+  if (!tags.length) tags = [...TYPE_TAGS.shore];
+  return [...new Set(tags)];
 }
 export function setMySpots(list) {
   for (let i = SPOTS.length - 1; i >= 0; i--) if (SPOTS[i].custom) SPOTS.splice(i, 1);
   for (const m of list || []) {
     if (!m?.id || !Number.isFinite(m.lat) || !Number.isFinite(m.lng)) continue;
-    SPOTS.push({ id: m.id, name: m.name || 'My spot', lat: m.lat, lng: m.lng, type: m.type, custom: true, boat: m.type === 'boat', tags: tagsFor(m.lat, m.lng, m.type) });
+    const hab = Array.isArray(m.hab) && m.hab.length ? m.hab.filter(t => HABITATS[t]) : null;
+    SPOTS.push({ id: m.id, name: m.name || 'My spot', lat: m.lat, lng: m.lng, type: m.type, hab, custom: true, boat: m.type === 'boat', tags: hab || inferTags(m.lat, m.lng, m.type) });
   }
   try { localStorage.setItem('mySpots', JSON.stringify(mySpots())); } catch { }
   document.dispatchEvent(new Event('spots-changed'));
 }
-export const mySpots = () => SPOTS.filter(s => s.custom).map(({ id, name, lat, lng, type }) => ({ id, name, lat, lng, type }));
+export const mySpots = () => SPOTS.filter(s => s.custom).map(({ id, name, lat, lng, type, hab }) => ({ id, name, lat, lng, type, ...(hab ? { hab } : {}) }));
 try { setMySpots(JSON.parse(localStorage.getItem('mySpots') || '[]')); } catch { }
 
 export const CATS = { mine: 'My own spots', pier: 'Piers, bridges & seawalls', beach: 'Beaches & passes', flats: 'Flats, parks & rivers', ramp: 'Boat ramps & launches', offshore: 'Offshore (boat)' };
@@ -189,7 +203,7 @@ function addOsm(list) {
   for (const o of list) {
     const n = near(o.lat, o.lng);
     if (n.d < 0.3) continue; // already listed
-    const base = n.d < 6 ? n.s.tags : ['flats', 'mangroves'];
+    const base = inferTags(o.lat, o.lng, o.kind === 'ramp' ? 'boat' : 'shore');
     const tags = o.kind === 'pier' ? ['pier', 'docks', ...base.filter(t => t !== 'pier')].slice(0, 4) : base;
     SPOTS.push({ id: 'osm-' + o.id, cat: o.kind === 'pier' ? 'pier' : o.kind === 'ramp' ? 'ramp' : n.s?.cat || 'flats', name: o.name, lat: o.lat, lng: o.lng, tags, osm: true, boat: o.kind === 'ramp' });
   }

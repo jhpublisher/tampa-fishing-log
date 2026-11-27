@@ -2,7 +2,9 @@
 // Runs in GitHub Actions on a schedule (see .github/workflows/reports.yml), so the app reads one same-origin file
 // and never hits these sites from James's phone. Only public feeds (RSS and the WordPress public API) are used,
 // and only the headline, date, link and a short teaser are kept. Full stories stay on the publisher's site.
+// The full text is read once here only to note which fish were mentioned and where (mentions); it isn't saved.
 import { writeFileSync, readFileSync } from 'node:fs';
+import { parseReport } from '../js/reportparse.js';
 
 const UA = 'TampaFishingLog/1.0 (personal fishing log; headlines only)';
 const MAX_AGE_DAYS = 60;
@@ -31,9 +33,9 @@ async function get(url) {
 }
 
 async function wp(src) {
-  const q = new URLSearchParams({ search: src.search, per_page: 5, orderby: 'date', _fields: 'date_gmt,link,title,excerpt' });
+  const q = new URLSearchParams({ search: src.search, per_page: 5, orderby: 'date', _fields: 'date_gmt,link,title,excerpt,content' });
   const j = JSON.parse(await get(`${src.url}/wp-json/wp/v2/posts?${q}`));
-  return j.map(p => ({ title: decode(p.title?.rendered), url: p.link, date: new Date(p.date_gmt + 'Z'), summary: teaser(p.excerpt?.rendered) }));
+  return j.map(p => ({ title: decode(p.title?.rendered), url: p.link, date: new Date(p.date_gmt + 'Z'), summary: teaser(p.excerpt?.rendered), full: decode(p.content?.rendered || p.excerpt?.rendered) }));
 }
 
 async function rss(src) {
@@ -57,6 +59,7 @@ async function rssOne(url, src) {
       url: decode(tag(it, 'link')) || atomLink,
       date: new Date(decode(tag(it, 'pubDate') || tag(it, 'updated') || tag(it, 'published'))),
       summary: url.includes('reddit.com') ? '' : teaser(tag(it, 'description') || tag(it, 'summary')),
+      full: decode(tag(it, 'content:encoded') || tag(it, 'content') || tag(it, 'description') || tag(it, 'summary')),
     };
   });
 }
@@ -68,7 +71,7 @@ for (const src of SOURCES) {
   try {
     const got = (await (src.type === 'wp' ? wp(src) : rss(src)))
       .filter(x => x.title && x.url && !isNaN(x.date) && +x.date > cutoff && (!src.match || src.match.test(x.title)));
-    got.slice(0, src.name.startsWith('r/') ? 4 : 6).forEach(x => items.push({ ...x, source: src.name, area: src.area }));
+    got.slice(0, src.name.startsWith('r/') ? 4 : 6).forEach(({ full, ...x }) => items.push({ ...x, source: src.name, area: src.area, mentions: parseReport(`${x.title}. ${full || x.summary || ''}`) }));
     status.push({ source: src.name, ok: true, count: got.length });
   } catch (e) {
     // keep that source's last good items so one bad fetch doesn't blank the card
