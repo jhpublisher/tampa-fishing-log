@@ -3,6 +3,7 @@
 // - FWC: red tide (Karenia brevis) beach and bay samples from the last week.
 // - Hubbard's Marina: latest fishing report headline (their public WordPress feed). Headline and link only.
 import { km } from './spots.js';
+import { reportMentions } from './reportparse.js';
 
 const DAY = 864e5;
 const BOX = { swlat: 27.3, swlng: -83.0, nelat: 28.2, nelng: -82.3 }; // Tarpon Springs to Anna Maria, out to the nearshore reefs
@@ -108,4 +109,10 @@ export async function latestReports() {
     } catch {}
   }
   return null;
+}
+
+// Which fish the reports named, and where: [{species, place, lat, lng, date, source, url}]. Fetched once per session.
+let mentionsP = null;
+export function reportFish() {
+  return mentionsP ||= latestReports().then(items => items ? reportMentions(items) : null).catch(() => (mentionsP = null));
 }

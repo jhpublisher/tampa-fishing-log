@@ -428,3 +428,11 @@ html.big body { font-size: 20px; }
 .wade-list li { display: block; padding: 8px 0; border-bottom: 1px dashed var(--line); }
 .wade-list li span { display: block; }
 #spot-info h3 { margin: 12px 0 4px; }
+.evidence { color: var(--good); margin: .2rem 0; }
+.hab-chips { display: flex; flex-wrap: wrap; gap: .35rem; border: 0; padding: 0; margin: .4rem 0; }
+.hab-chips label { position: relative; }
+.hab-chips input { position: absolute; opacity: 0; }
+.hab-chips span { display: inline-block; padding: .3rem .65rem; border: 1px solid var(--line, #ccc); border-radius: 999px; font-size: .85rem; }
+.hab-chips input:checked + span { background: var(--flats); border-color: var(--flats); color: #fff; }
+.hab-chips input:focus-visible + span { outline: 2px solid var(--flats); outline-offset: 2px; }
+.linkish { background: none; border: 0; padding: 0 .2rem; min-height: 0; color: var(--flats); text-decoration: underline; font: inherit; cursor: pointer; }

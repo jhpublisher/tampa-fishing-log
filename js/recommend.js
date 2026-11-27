@@ -1,6 +1,7 @@
 // Rule-based recommendations: which species to target at a spot and time, and where/when to fish for a species.
-// Each species gets a 0-100 score from water temp, season, habitat, tide, light, solunar and wind,
-// plus a bonus from your own catch log. Tune the PROFILES table to change the advice.
+// Each species gets a 0-100 score. 70% of it is a model guess (water temp, season, habitat, tide, light,
+// solunar, wind); the rest is real evidence, weighted most to least: your own catches here, local fishing
+// reports that name this area, then iNaturalist sightings. Tune PROFILES and EVIDENCE to change the advice.
 import { SPECIES, byId, isOpen, daysToClose } from './species.js';
 import { windLimit } from './conditions.js';
 import { SPOTS, km } from './spots.js';
@@ -35,7 +36,18 @@ export const PROFILES = {
   blacktip:   { temp: [70, 75, 88, 92], peak: [4, 5, 6, 7, 8, 9], good: [3, 10], habitat: ['beach', 'pass', 'flats'], windMax: 18, tide: 'Moving tide along the beaches' },
 };
 
+// Where a species really lives around Tampa Bay. If a spot has none of these, the fish is rare there
+// no matter how good the season is (pompano in a back-bay canal, kingfish off a seawall).
+const NEEDS = {
+  pompano: ['beach', 'pass'], blacktip: ['beach', 'pass', 'nearshore'], king: ['nearshore', 'pass', 'pier'],
+  redgrouper: ['nearshore'], gag: ['nearshore', 'bridges'], hogfish: ['nearshore'], tripletail: ['nearshore', 'bay', 'pass'],
+  spanish: ['bay', 'pass', 'pier', 'bridges', 'beach', 'nearshore'], cobia: ['nearshore', 'bay', 'bridges', 'pier', 'pass'],
+};
+const WATER = { beach: 'Gulf beaches', pass: 'passes', nearshore: 'Gulf reefs', pier: 'piers', bridges: 'bridges', bay: 'open bay' };
 export const TARGETS = SPECIES.filter(s => PROFILES[s.id]);
+// The model part is scaled to 70 at most. Evidence adds up to these, so real catches and reports win.
+const MODEL_WEIGHT = 0.7;
+const EVIDENCE = { mine: 35, reports: 25, sightings: 15 };
 
 const ramp = (x, a, b) => Math.max(0, Math.min(1, (x - a) / (b - a)));
 function tempFit([lo, il, ih, hi], t) {
@@ -57,14 +69,14 @@ export function feltWind(spot, w) {
   return Math.round(w.mph * f);
 }
 
-export function makeContext(spot, t, { hilo, wind, temp, day, sightings, redtide }) {
+export function makeContext(spot, t, { hilo, wind, temp, day, sightings, redtide, reports }) {
   day = day || solunarDay(t, spot.lat, spot.lng);
   const flow = hilo ? flowAt(hilo, t) : null;
   const toLight = Math.min(Math.abs(t - day.sunrise), Math.abs(t - day.sunset)) / H;
   const night = t < day.sunrise || t > day.sunset;
   const sol = day.periods.find(p => Math.abs(t - p.center) <= (p.kind === 'major' ? 1 : 0.5) * H);
   const rt = redtide ? redTideAt(redtide, spot.lat, spot.lng) : null;
-  return { spot, t, temp, wind, flow, toLight, night, sol, moon: moonInfo(t), sightings, redtide: rt };
+  return { spot, t, temp, wind, flow, toLight, night, sol, moon: moonInfo(t), sightings, redtide: rt, reports };
 }
 
 // History: catches from your trips, each {species, lat, lng, date}.
@@ -128,18 +140,49 @@ export function scoreSpecies(id, ctx, history = []) {
     }
   } else s += 3;
 
-  // your catch log: up to +15
-  const mine = history.filter(c => c.species === id);
-  const here = mine.filter(c => c.lat != null && km(c.lat, c.lng, ctx.spot.lat, ctx.spot.lng) < 3).length;
-  const season = mine.filter(c => Math.min(Math.abs(c.date.getMonth() + 1 - m), 12 - Math.abs(c.date.getMonth() + 1 - m)) <= 1).length;
-  const bonus = Math.min(10, here * 4) + Math.min(5, season * 1.5);
-  if (bonus) { s += bonus; why.push(here ? `you've caught ${here} here` : `you catch them this time of year`); }
+  // ---- real evidence, which counts for more than the model above ----
+  s *= MODEL_WEIGHT;
+  const ev = [], age = d => Math.max(0, Math.round((ctx.t - d) / 864e5)), ago = d => (n => n === 0 ? 'today' : n === 1 ? 'yesterday' : `${n} days ago`)(age(d));
+  const fresh = d => { const n = age(d); return n <= 10 ? 1 : n <= 30 ? 0.6 : n <= 60 ? 0.3 : 0.1; };
+  const { lat, lng } = ctx.spot;
 
-  // recent public sightings near this spot (iNaturalist): up to +8
-  if (ctx.sightings) {
-    const n = nearby(ctx.sightings, id, ctx.spot.lat, ctx.spot.lng).length;
-    if (n) { s += Math.min(8, 3 + n * 2); why.push(`${n} spotted nearby lately`); }
+  // 1. your own catches: the strongest evidence of all
+  const mine = history.filter(c => c.species === id);
+  const hereC = mine.filter(c => c.lat != null && km(c.lat, c.lng, lat, lng) < 3);
+  const season = hereC.filter(c => Math.min(Math.abs(c.date.getMonth() + 1 - m), 12 - Math.abs(c.date.getMonth() + 1 - m)) <= 1).length;
+  const bayC = mine.filter(c => Math.min(Math.abs(c.date.getMonth() + 1 - m), 12 - Math.abs(c.date.getMonth() + 1 - m)) <= 1).length;
+  if (hereC.length) {
+    s += Math.min(EVIDENCE.mine, 14 + hereC.length * 5 + season * 4);
+    ev.push(`You've caught ${hereC.length} here${season ? `, ${season} this time of year` : ''}`);
+  } else if (bayC) { s += Math.min(5, bayC * 1.5); ev.push(`You catch them this time of year`); }
+
+  let local = false;
+  // 2. local fishing reports (captains' reports and news) that name this area
+  if (ctx.reports?.length) {
+    const rs = ctx.reports.filter(r => r.species === id && ctx.t - r.date < 75 * 864e5 && r.date <= ctx.t);
+    const close = rs.filter(r => r.lat != null && km(r.lat, r.lng, lat, lng) <= 10).sort((a, b) => b.date - a.date);
+    const wide = rs.filter(r => r.lat == null).sort((a, b) => b.date - a.date);
+    if (close.length) {
+      local = true;
+      const w = close.reduce((a, r) => a + fresh(r.date), 0);
+      s += Math.min(EVIDENCE.reports, 8 + 10 * w);
+      ev.push(`Reported at ${close[0].place} ${ago(close[0].date)} (${close[0].source.split(' ·')[0]})`);
+    } else if (wide.length && hit.length) {
+      s += Math.min(6, 3 * wide.reduce((a, r) => a + fresh(r.date), 0));
+      ev.push(`In a Tampa Bay report ${ago(wide[0].date)}`);
+    }
   }
+
+  // 3. iNaturalist sightings within 5 km
+  if (ctx.sightings) {
+    const ns = nearby(ctx.sightings, id, lat, lng).sort((a, b) => b.date - a.date);
+    if (ns.length) {
+      local = true;
+      s += Math.min(EVIDENCE.sightings, 4 + 4 * ns.reduce((a, r) => a + fresh(r.date), 0));
+      ev.push(`${ns.length} spotted within 3 mi (iNaturalist), latest ${ago(ns[0].date)}`);
+    }
+  }
+  const seen = hereC.length > 0 || local;
 
   // red tide near this spot (FWC samples): medium or high kills the bite
   if (ctx.redtide?.level >= 3) { s -= 25; why.push(`${ctx.redtide.label} red tide nearby`); }
@@ -148,9 +191,14 @@ export function scoreSpecies(id, ctx, history = []) {
   // cold-stress mode: under 60°F, tropical fish are struggling, so don't push them
   if (frigid && ['snook', 'tarpon'].includes(id)) { s -= 15; why.push('cold-stressed: release gently or leave them be'); }
 
+  // rare in this kind of water: cut hard, unless people have actually seen or caught them right here
+  const need = NEEDS[id];
+  if (need && !need.some(t => tags.includes(t))) {
+    if (!seen) { s *= 0.45; why.unshift(`rare here: mostly at ${need.slice(0, 2).map(t => WATER[t]).join(' and ')}`); }
+  }
   const score = Math.max(0, Math.min(100, Math.round(s)));
   const closed = !sp.cr && !isOpen(sp, ctx.t);
-  return { id, name: sp.name, score, why, closed, closing: closed ? null : daysToClose(sp, ctx.t), at: ctx.t, cr: !!sp.cr, windy, coldStress: frigid, tip: p.tide };
+  return { id, name: sp.name, score, why, evidence: ev, guess: !seen, closed, closing: closed ? null : daysToClose(sp, ctx.t), at: ctx.t, cr: !!sp.cr, windy, coldStress: frigid, tip: p.tide };
 }
 
 // Feature 1: best species for a spot and time.

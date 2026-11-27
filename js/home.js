@@ -2,10 +2,10 @@
 // starred spots with their tides, what's biting, today's tide curve and the week ahead.
 import { STATIONS, loadStations, getHiLo, heightAt, flowAt, nearestStation } from './tides.js';
 import { moonInfo, solunarDay, forecast, scoreAt } from './solunar.js';
-import { SPOTS, nearestSpot, km, setMySpots, mySpots, SPOT_TYPES, loadOsmSpots, ACCESS, accessOf, infoOf } from './spots.js';
+import { SPOTS, nearestSpot, km, setMySpots, mySpots, SPOT_TYPES, loadOsmSpots, ACCESS, accessOf, infoOf, HABITATS, inferTags } from './spots.js';
 import { latestWaterTemp, windForecast, windAt, windCells, windCellAt, windLimit } from './conditions.js';
 import { makeContext, rankSpecies, catchHistory, feltWind } from './recommend.js';
-import { recentSightings, redTideSamples, redTideAt } from './sightings.js';
+import { recentSightings, redTideSamples, redTideAt, reportFish } from './sightings.js';
 import { GUIDE } from './guide.js';
 import { closesText } from './species.js';
 import * as store from './store.js';
@@ -39,7 +39,7 @@ export function place(key) {
   const [kind, id] = String(key).split(':');
   if (kind === 'spot') {
     const s = SPOTS.find(x => x.id === id); if (!s) return null;
-    return { key, id: s.id, cat: s.cat, name: s.name, short: s.custom ? s.name : s.name.split(/ [&(/]/)[0], lat: s.lat, lng: s.lng, tags: s.tags, boat: s.boat, custom: s.custom, type: s.type, station: nearestStation(s.lat, s.lng) };
+    return { key, id: s.id, cat: s.cat, name: s.name, short: s.custom ? s.name : s.name.split(/ [&(/]/)[0], lat: s.lat, lng: s.lng, tags: s.tags, hab: s.hab, boat: s.boat, custom: s.custom, type: s.type, station: nearestStation(s.lat, s.lng) };
   }
   const st = STATIONS.find(x => x.id === id); if (!st) return null;
   const near = nearestSpot(st.lat, st.lng);
@@ -99,6 +99,7 @@ function loadExtras() {
   windForecast().then(set('wind'));
   redTideSamples().then(set('redtide'));
   recentSightings(30).then(set('sightings'));
+  reportFish().then(set('reports'));
 }
 
 // ---------- verdict ----------
@@ -200,7 +201,7 @@ async function renderSpots() {
     const nx = nextChange(hilo, now), flow = hilo ? flowAt(hilo, now) : null;
     const rt = extras.redtide ? redTideAt(extras.redtide, p.lat, p.lng) : null;
     const on = favs.includes(key);
-    const ctx = makeContext(p, now, { hilo, wind: windHere(p, now), temp: extras.water?.temp ?? typicalWater(now), sightings: extras.sightings, redtide: extras.redtide });
+    const ctx = makeContext(p, now, { hilo, wind: windHere(p, now), temp: extras.water?.temp ?? typicalWater(now), sightings: extras.sightings, redtide: extras.redtide, reports: extras.reports });
     const fish = rankSpecies(ctx, extras.hist || []).find(r => !r.cr && !r.closed);
     return `<div class="spot ${key === active ? 'active' : ''}" data-key="${esc(key)}">
       <button type="button" class="spot-main" data-key="${esc(key)}" aria-label="Show ${esc(p.name)}">
@@ -222,14 +223,14 @@ async function renderSpots() {
 
 function renderBiting(p, hilo, v, now) {
   const el = $('#biting');
-  const ctx = makeContext(p, now, { hilo, wind: v.wind, temp: extras.water?.temp ?? typicalWater(now), day: v.day, sightings: extras.sightings, redtide: extras.redtide });
+  const ctx = makeContext(p, now, { hilo, wind: v.wind, temp: extras.water?.temp ?? typicalWater(now), day: v.day, sightings: extras.sightings, redtide: extras.redtide, reports: extras.reports });
   const top = rankSpecies(ctx, extras.hist || []).filter(r => !r.closed && (!r.cr || r.score > 40)).slice(0, 3);
   el.innerHTML = top.map(r => {
     const img = GUIDE[r.id]?.photos?.[0]?.src;
     return `<button type="button" class="fish" data-name="${esc(shortName(r.name))}">
       ${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : '<span class="fish-ph">🐟</span>'}
       <span class="fish-body"><span class="fish-name">${esc(shortName(r.name))}${r.closing ? ` <span class="tag warn">${closesText(r.closing, r.at)}</span>` : r.cr ? ' <span class="tag">C&amp;R</span>' : ''}</span>
-      <span class="fish-why">${esc(r.why.slice(0, 2).join(' · ') || 'Good fit for this spot')}</span></span>
+      <span class="fish-why">${esc([...r.evidence.slice(0, 1), ...r.why].slice(0, 2).join(' · ') || 'Good fit for this spot')}</span></span>
       <span class="fish-score">${r.score}</span>
     </button>`;
   }).join('');
@@ -388,6 +389,23 @@ function openSheet() {
 // ---------- map of spots ----------
 let smap = null, slayer = null;
 const directions = p => `https://maps.apple.com/?daddr=${p.lat},${p.lng}&q=${encodeURIComponent(p.name)}`;
+// Habitat chips: what kind of water a spot is. Species scores use these.
+const habChips = sel => `<fieldset class="hab-chips" aria-label="Habitat">${Object.entries(HABITATS).map(([v, t]) => `<label><input type="checkbox" name="hab" value="${v}" ${sel.includes(v) ? 'checked' : ''}><span>${t}</span></label>`).join('')}</fieldset>`;
+const habPicked = () => [...document.querySelectorAll('#map-info [name=hab]:checked')].map(i => i.value);
+function editHab(key) {
+  const p = place(key), id = key.slice(5);
+  $('#map-info').innerHTML = `<p class="small"><strong>What kind of water is ${esc(p.name)}?</strong> Pick all that fit. This decides which fish make sense here.</p>
+    ${habChips(p.tags)}
+    <div class="row map-btns"><button type="button" class="primary" id="hab-save">Save habitat</button><button type="button" id="hab-cancel">Cancel</button></div>`;
+  $('#hab-cancel').onclick = () => mapInfo(key);
+  $('#hab-save').onclick = () => {
+    const hab = habPicked();
+    if (!hab.length) { toast('Pick at least one'); return; }
+    setMySpots(mySpots().map(m => m.id === id ? { ...m, hab } : m));
+    store.saveMySpots(mySpots()).catch(() => { });
+    toast('Habitat saved'); render(); mapInfo(key);
+  };
+}
 function mapInfo(key) {
   const p = place(key); if (!p) return;
   const on = favs.includes(key);
@@ -402,7 +420,9 @@ function mapInfo(key) {
     <div class="row map-btns">
       <button type="button" id="map-add">＋ Add my own spot</button>
       ${p.custom ? '<button type="button" class="danger" id="map-del">Delete this spot</button>' : ''}
-    </div>`;
+    </div>
+    ${p.custom ? `<p class="small">Habitat: ${esc(p.tags.map(t => HABITATS[t] || t).join(', '))}${p.hab ? '' : ' <span class="muted">(a guess)</span>'} <button type="button" class="linkish" id="map-hab">Edit</button></p>` : ''}`;
+  if (p.custom) $('#map-hab').onclick = () => editHab(key);
   $('#map-use').onclick = () => { $('#map-sheet').close(); choose(key); };
   $('#map-add').onclick = startAdd;
   if (p.custom) $('#map-del').onclick = e => {
@@ -458,21 +478,26 @@ function endAdd(key) {
 }
 function dropPin(lat, lng, presetName) {
   if (!adding) return;
-  adding = { lat, lng };
+  adding = { lat, lng, habTouched: adding.habTouched };
   if (pinMarker) pinMarker.setLatLng([lat, lng]);
   else pinMarker = L.marker([lat, lng], { draggable: true }).addTo(smap).on('dragend', e => { const ll = e.target.getLatLng(); adding.lat = ll.lat; adding.lng = ll.lng; });
   const name = presetName ?? ($('#add-name')?.value || '');
   const type = document.querySelector('[name=add-type]:checked')?.value || 'shore';
+  const touched = adding.habTouched ? habPicked() : null;
   $('#map-info').innerHTML = `<label>Spot name <input id="add-name" maxlength="40" placeholder="e.g. Dad's dock" value="${esc(name)}"></label>
     <fieldset class="seg" aria-label="How you fish it">${Object.entries(SPOT_TYPES).map(([v, t]) => `<label><input type="radio" name="add-type" value="${v}" ${v === type ? 'checked' : ''}><span>${t}</span></label>`).join('')}</fieldset>
+    <p class="small"><strong>Habitat</strong> <span class="muted">${touched ? '' : '(our best guess, tap to fix)'}</span></p>
+    ${habChips(touched || inferTags(lat, lng, type))}
     <p class="muted small">Drag the pin to adjust. Tides come from the nearest NOAA station.</p>
     <div class="row map-btns"><button type="button" class="primary" id="add-save">Save spot</button><button type="button" id="add-cancel">Cancel</button></div>`;
   $('#add-cancel').onclick = endAdd;
+  $$('[name=hab]', $('#map-info')).forEach(i => i.onchange = () => { adding.habTouched = true; });
+  $$('[name=add-type]', $('#map-info')).forEach(i => i.onchange = () => { if (!adding.habTouched) dropPin(adding.lat, adding.lng); });
   $('#add-save').onclick = () => {
     const nm = $('#add-name').value.trim();
     if (!nm) { $('#add-name').focus(); $('#add-name').placeholder = 'Give it a name first'; return; }
     const id = 'my-' + Date.now().toString(36);
-    setMySpots([...mySpots(), { id, name: nm, lat: +adding.lat.toFixed(5), lng: +adding.lng.toFixed(5), type: document.querySelector('[name=add-type]:checked').value }]);
+    setMySpots([...mySpots(), { id, name: nm, lat: +adding.lat.toFixed(5), lng: +adding.lng.toFixed(5), type: document.querySelector('[name=add-type]:checked').value, ...(adding.habTouched && habPicked().length ? { hab: habPicked() } : {}) }]);
     store.saveMySpots(mySpots()).catch(() => { });
     const key = 'spot:' + id;
     if (!favs.includes(key)) { favs = [...favs, key]; saveFavs(); }
@@ -498,7 +523,7 @@ function probeAt(lat, lng) {
   $$('[data-n]', $('#map-info')).forEach(b => b.onclick = () => { const s = near[+b.dataset.n].s; const cb = probe; endProbe(); $('#map-sheet').close(); cb?.onSpot(s.id); });
   $('#probe-target').onclick = () => {
     const n = near.find(x => !x.s.custom && !x.s.osm) || near[0];
-    const spot = { id: '__pin', name: `Dropped pin (near ${n.s.name.split(/ [&(,]/)[0]})`, lat, lng, tags: n.d < 6 ? n.s.tags : ['flats', 'mangroves'], pin: true };
+    const spot = { id: '__pin', name: `Dropped pin (near ${n.s.name.split(/ [&(,]/)[0]})`, lat, lng, tags: inferTags(lat, lng), pin: true };
     const cb = probe; endProbe(); $('#map-sheet').close(); cb?.onTarget(spot);
   };
   $('#probe-save').onclick = () => { endProbe(); startAdd(); dropPin(lat, lng, ''); };
