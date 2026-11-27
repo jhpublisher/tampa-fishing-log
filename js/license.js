@@ -1,9 +1,10 @@
 // Fishing license card on the License tab, with an expiry reminder above it.
 import * as store from './store.js';
+import { kvGet, kvSet } from './outbox.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-const TYPES = ['Annual saltwater', 'Annual freshwater/saltwater combo', '5-year saltwater', 'Lifetime sportsman', 'Gold Sportsman', 'Senior (65+) exemption', 'Other'];
+const TYPES = ['Annual saltwater', 'Resident shoreline (free, shore only)', 'Annual freshwater/saltwater combo', '5-year saltwater', 'Non-resident 3-day / 7-day', 'Youth saltwater (optional, 8–15)', 'Lifetime sportsman', 'Gold Sportsman', 'Military Gold Sportsman', 'Senior (65+) exemption', 'Under 16 (exempt)', 'FWC charter captain license', 'Other'];
 const PERMITS = [['snook', 'Snook permit'], ['reef', 'State Reef Fish Angler'], ['shark', 'Shore-based shark permit']];
 
 const daysLeft = lic => {
@@ -51,11 +52,21 @@ async function renderView() {
       <div class="lic-photos" id="lic-photos"></div>
       <div class="row end"><button type="button" id="lic-edit">Edit</button></div>`;
     if (lic.frontPath || lic.backPath) {
+      // Online: load from private storage and keep a copy on this phone. No signal: show the copy.
+      const urls = {};
       try {
-        const urls = await store.licensePhotoUrls(lic);
-        $('#lic-photos').innerHTML = ['front', 'back'].filter(s => urls[s])
-          .map(s => `<a href="${urls[s]}" target="_blank" rel="noopener"><img src="${urls[s]}" alt="License ${s}"><span>${s === 'front' ? 'Front' : 'Back'}</span></a>`).join('');
-      } catch (e) { $('#lic-photos').innerHTML = `<p class="small bad">${esc(e.message)}</p>`; }
+        if (!navigator.onLine) throw new Error('offline');
+        Object.assign(urls, await store.licensePhotoUrls(lic));
+        for (const s of ['front', 'back']) if (urls[s]) fetch(urls[s]).then(r => r.ok ? r.blob() : null).then(b => b && kvSet(`license-${s}`, { path: lic[s + 'Path'], blob: b })).catch(() => { });
+      } catch {
+        for (const s of ['front', 'back']) {
+          const c = await kvGet(`license-${s}`);
+          if (c?.blob && c.path === lic[s + 'Path']) urls[s] = URL.createObjectURL(c.blob);
+        }
+      }
+      $('#lic-photos').innerHTML = ['front', 'back'].filter(s => urls[s])
+        .map(s => `<a href="${urls[s]}" target="_blank" rel="noopener"><img src="${urls[s]}" alt="License ${s}"><span>${s === 'front' ? 'Front' : 'Back'}</span></a>`).join('')
+        || '<p class="small muted">Photos load when you have signal, then stay on this phone.</p>';
     }
   }
   $('#lic-edit').onclick = renderForm;
@@ -124,5 +135,6 @@ export function onAuth(user) {
   $('#license-signedout').hidden = !!user;
   $('#license-link').hidden = !user;
   if (user) { renderView(); renderLink(); }
+  const help = $('#lic-help'); if (help) help.open = !user || !store.getLicense(); // open until a license is saved
   renderReminder();
 }

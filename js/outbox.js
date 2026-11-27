@@ -4,22 +4,29 @@ const DB = 'fishlog', STORE = 'outbox';
 let dbP = null;
 function db() {
   if (!dbP) dbP = new Promise((res, rej) => {
-    const r = indexedDB.open(DB, 1);
-    r.onupgradeneeded = () => r.result.createObjectStore(STORE, { keyPath: 'id' });
+    const r = indexedDB.open(DB, 2);
+    r.onupgradeneeded = () => {
+      if (!r.result.objectStoreNames.contains(STORE)) r.result.createObjectStore(STORE, { keyPath: 'id' });
+      if (!r.result.objectStoreNames.contains('kv')) r.result.createObjectStore('kv');
+    };
     r.onsuccess = () => res(r.result); r.onerror = () => { dbP = null; rej(r.error); };
   });
   return dbP;
 }
-const tx = async (mode, fn) => {
+const tx = async (mode, fn, store = STORE) => {
   const d = await db();
   return new Promise((res, rej) => {
-    const t = d.transaction(STORE, mode), req = fn(t.objectStore(STORE));
+    const t = d.transaction(store, mode), req = fn(t.objectStore(store));
     t.oncomplete = () => res(req?.result); t.onerror = () => rej(t.error);
   });
 };
 export const queueTrip = trip => tx('readwrite', s => s.put({ ...trip, _queued: new Date().toISOString() }));
 export const pendingTrips = () => tx('readonly', s => s.getAll()).catch(() => []);
 export const dropTrip = id => tx('readwrite', s => s.delete(id));
+
+// Small key-value store on this phone (e.g. license photos for when there's no signal).
+export const kvGet = key => tx('readonly', s => s.get(key), 'kv').catch(() => null);
+export const kvSet = (key, val) => tx('readwrite', s => s.put(val, key), 'kv').catch(() => { });
 
 // True when an error looks like "no connection" rather than a real problem with the trip.
 export const isOffline = err => !navigator.onLine || err instanceof TypeError || /fetch|network|load failed|timed? ?out/i.test(String(err?.message || err));

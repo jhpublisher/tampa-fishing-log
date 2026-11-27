@@ -8,6 +8,7 @@ import { TARGETS, makeContext, rankSpecies, findWindows, catchHistory } from './
 import * as store from './store.js';
 import { recentSightings, redTideSamples, redTideAt, REPORT_LINKS, latestHubbards } from './sightings.js';
 import { byId, closesText, daysToClose } from './species.js';
+import { TIPS } from './tips.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -109,6 +110,7 @@ $('#plan-what').onsubmit = async e => {
         ${bar(r.score)}
         <div class="small">${esc(r.why.join(' · '))}</div>
         ${r.tip ? `<div class="small muted">Tip: ${esc(r.tip)}</div>` : ''}
+        ${TIPS[r.id] ? `<details class="small"><summary>Bait and rig</summary>${esc(TIPS[r.id].bait)}</details>` : ''}
       </div>`).join('')}
     <details><summary class="small">All species</summary>
       <ul class="plain small">${rest.map(r => `<li><span>${esc(r.name)} ${r.closed ? '(closed)' : r.closing ? `(${closesText(r.closing, r.at).replace('Closes', 'closes')})` : ''}</span><span>${r.score}</span></li>`).join('')}</ul>
@@ -151,7 +153,8 @@ $('#plan-where').onsubmit = async e => {
         <div class="small">${esc(r.why.join(' · '))}</div>
         ${r.backup ? `<div class="small muted">Backup: ${fmtDay(r.backup.start)}, ${fmtTime(r.backup.start)}–${fmtTime(r.backup.end)} (${r.backup.score})${r.backup.closed ? ' · closed that day' : ''}</div>` : ''}
       </div>`).join('')}
-    ${best[0].tip ? `<p class="small muted">Tip: ${esc(best[0].tip)}</p>` : ''}`;
+    ${best[0].tip ? `<p class="small muted">Tip: ${esc(best[0].tip)}</p>` : ''}
+    ${TIPS[id] ? `<p class="small muted">Bait and rig: ${esc(TIPS[id].bait)}</p>` : ''}`;
 };
 
 // ---------- red tide chip ----------

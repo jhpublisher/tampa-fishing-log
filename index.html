@@ -17,11 +17,12 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600&display=swap">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=23">
+  <link rel="stylesheet" href="css/style.css?v=24">
 </head>
 <body data-view="today">
   <header class="hero">
     <div class="hero-photo" role="img" aria-label="Four kids in Halloween costumes riding in a red wagon"></div>
+    <button type="button" id="text-size" class="text-size" aria-pressed="false" aria-label="Bigger text">A<span>A</span></button>
     <div class="hero-text">
       <p class="eyebrow">Tampa Bay · Gulf Coast</p>
       <h1>James's <span>Fishing Log</span></h1>
@@ -62,6 +63,19 @@
         <div id="week"></div>
         <p class="muted small">Score blends moving tide, solunar feeding times, moon phase, dawn/dusk and wind. A rule of thumb, not a promise.</p>
       </div>
+
+      <details class="card gloss">
+        <summary><h2>What do these words mean?</h2></summary>
+        <dl class="lic-rules">
+          <div><dt>Bite score</dt><dd>0 to 100. Higher means better odds right now: moving water, a feeding time, dawn or dusk, and a calm enough wind.</dd></div>
+          <div><dt>Feeding time (solunar)</dt><dd>Times when the moon is overhead, underfoot, rising or setting. Fish tend to feed more then. Majors last about 2 hours, minors about 1.</dd></div>
+          <div><dt>Rising / falling tide</dt><dd>Moving water carries bait and turns fish on. Slack tide (not moving) is usually slow.</dd></div>
+          <div><dt>Slot</dt><dd>A size range. You can keep a fish only if it's inside it, e.g. redfish 18 to 27 inches.</dd></div>
+          <div><dt>Total vs fork length</dt><dd>Total: nose to tail tip, tail squeezed. Fork: nose to the middle of the tail fork.</dd></div>
+          <div><dt>Bag limit</dt><dd>How many you may keep per person per day.</dd></div>
+          <div><dt>Moon names</dt><dd>Gibbous means more than half lit, crescent less. Waxing is growing toward full, waning is shrinking. Full and new moons bring the biggest tides.</dd></div>
+        </dl>
+      </details>
     </section>
 
     <!-- LOG -->
@@ -98,6 +112,28 @@
         <button type="button" class="primary" data-go="log">Sign in on My trips</button>
       </div>
       <section id="license-card" class="card lic-card" hidden></section>
+      <details class="card lic-help" id="lic-help">
+        <summary><h2>Do I need a license?</h2></summary>
+        <p class="small muted">If you cast a line in salt water, even catch and release, you need one unless you're exempt.</p>
+        <dl class="lic-rules">
+          <div><dt>Under 16</dt><dd>No license or snook permit needed.</dd></div>
+          <div><dt>Florida resident 65+</dt><dd>No license needed. Carry your Florida driver's license or ID.</dd></div>
+          <div><dt>Shore, bridge, seawall or pier fixed to land</dt><dd>Florida residents can get the <strong>free Resident Shoreline license</strong>. It does not cover fishing from a boat or kayak, or a shore you reached by boat.</dd></div>
+          <div><dt>Boat, kayak, or any visitor 16+</dt><dd>Saltwater license: residents $17 a year or $79 for 5 years. Visitors $17 for 3 days, $30 for 7 days, $47 a year.</dd></div>
+          <div><dt>Charter, party boat or licensed pier</dt><dd>You're covered by their license. Ask to be sure.</dd></div>
+        </dl>
+        <h3>Extra permits</h3>
+        <dl class="lic-rules">
+          <div><dt>Snook</dt><dd>$10 a year on top of your license to keep a snook, shore fishing included.</dd></div>
+          <div><dt>Sharks from shore</dt><dd>Free shore-based shark permit after a short online course. Needed for sharks from beaches, bridges and piers, even if you're otherwise exempt.</dd></div>
+          <div><dt>Reef fish from a private boat</dt><dd>Free State Reef Fish Angler designation for grouper, snapper, hogfish and other reef fish.</dd></div>
+        </dl>
+        <div class="row">
+          <a class="btn primary" href="https://gooutdoorsflorida.com/" target="_blank" rel="noopener">Buy at GoOutdoorsFlorida ↗</a>
+          <a class="btn" href="https://myfwc.com/license/recreational/do-i-need-one/" target="_blank" rel="noopener">FWC: who's exempt ↗</a>
+        </div>
+        <p class="small muted">From myfwc.com, checked Nov 26, 2026. Prices can change.</p>
+      </details>
     </section>
 
     <!-- TRIP EDIT -->
@@ -280,7 +316,7 @@
   <script src="vendor/leaflet/leaflet.js"></script>
   <script src="vendor/suncalc/suncalc.js"></script>
   <script src="vendor/supabase/supabase.js"></script>
-  <script type="module" src="js/app.js?v=23"></script>
-  <script type="module" src="js/plan.js?v=23"></script>
+  <script type="module" src="js/app.js?v=24"></script>
+  <script type="module" src="js/plan.js?v=24"></script>
 </body>
 </html>
