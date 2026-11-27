@@ -610,3 +610,51 @@ body[data-view="cards"] { background: #0b1d24; }
 .imp-len-l input { width: 90px; display: inline-block; margin-left: 6px; }
 .cc-grade.est { border-style: dashed; }
 .cc-grade i { font: 700 .5rem var(--body); font-style: normal; text-transform: uppercase; line-height: 1; }
+
+/* ---------- Disco Diamond frames (middle-ground). Level on .frw: lv0 Common ... lv4 grade 10 ---------- */
+.frw { --bw: 5px; --spd: 12s; --halo: 0; --studs: 0; --foil: 0; --star: #fff;
+  --ring: conic-gradient(#cfd8dc, #fff, #9aa4ad, #fff, #cfd8dc);
+  position: absolute; inset: 0; z-index: 1; border-radius: 9px; isolation: isolate; }
+.frw.lv1 { --spd: 9s; --halo: .25; --ring: conic-gradient(#00e5ff, #fff, #00ffa3, #fff, #00e5ff); --star: #b9fff2; }
+.frw.lv2 { --spd: 7s; --halo: .35; --studs: .45; --foil: .2; --star: #d6e6ff;
+  --ring: conic-gradient(#3b7bff, #fff, #b06bff, #fff, #3bd0ff, #fff, #3b7bff); }
+.frw.lv3 { --bw: 6px; --spd: 5s; --halo: .4; --studs: .45; --foil: .26; --star: #fff2b0; --gem1: #ffb000; --gem2: #fff2b0;
+  --ring: conic-gradient(#ffb000, #fff6c8, #ff7a00, #fff, #ffd000, #fff6c8, #ffb000); }
+.frw.lv4 { --bw: 6px; --spd: 3s; --halo: .45; --studs: .45; --foil: .35; --gem1: #ff2fd0; --gem2: #7dfcff;
+  --ring: conic-gradient(#ff3d6e, #ffb300, #fff700, #3dff8b, #2fd8ff, #7a5cff, #ff3dd8, #ff3d6e); }
+.frw::before { content: ""; position: absolute; inset: -4px; border-radius: 14px; z-index: -1; opacity: var(--halo);
+  background: var(--ring); filter: blur(8px); }
+.cc-feat .frw::before, .cc-sheet .frw::before { animation: fr-pulse 2.4s ease-in-out infinite; }
+@keyframes fr-pulse { 50% { opacity: calc(var(--halo) * .5); } }
+.fr { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; }
+.fr > img, .fr > .cc-noimg { position: absolute; inset: var(--bw); width: calc(100% - var(--bw) * 2); height: calc(100% - var(--bw) * 2); object-fit: cover; border-radius: 5px; z-index: 2; background: #0e2128; display: flex; align-items: center; justify-content: center; }
+.fr-ring { position: absolute; left: 50%; top: 50%; width: 180%; aspect-ratio: 1; translate: -50% -50%;
+  background: var(--ring); animation: fr-spin var(--spd) linear infinite; will-change: rotate; }
+.frw.lv0 .fr-ring { animation: none; }
+@keyframes fr-spin { to { rotate: 360deg; } }
+.fr-studs { position: absolute; inset: 0; z-index: 1; border-radius: inherit; opacity: var(--studs); padding: 1px;
+  background: radial-gradient(circle, #fff 0 1.4px, rgba(255, 255, 255, .5) 2px, transparent 2.8px) 0 0 / 10px 10px;
+  -webkit-mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  animation: fr-twinkle 2.4s steps(2) infinite; }
+@keyframes fr-twinkle { 50% { background-position: 5px 5px; } }
+.fr-foil { position: absolute; inset: var(--bw); border-radius: 5px; z-index: 3; pointer-events: none; opacity: var(--foil); mix-blend-mode: overlay;
+  background: linear-gradient(115deg, transparent 30%, #ff6bd6 38%, #fff36b 43%, #5dffa0 48%, #4fd1ff 53%, #9b7bff 58%, transparent 66%) 0 0 / 300% 100%;
+  animation: fr-foil 4s ease-in-out infinite; }
+@keyframes fr-foil { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+.fr i.gem { position: absolute; z-index: 4; width: 13px; aspect-ratio: 1; rotate: 45deg;
+  background: radial-gradient(circle at 35% 30%, #fff 0 12%, transparent 30%), conic-gradient(from 45deg, var(--gem1), var(--gem2), var(--gem1), var(--gem2), var(--gem1));
+  box-shadow: 0 0 5px var(--gem1), 0 0 0 1.5px rgba(255, 255, 255, .8); animation: fr-gem 2s ease-in-out infinite; }
+.fr i.g1 { left: -4px; top: -4px; } .fr i.g2 { right: -4px; top: -4px; animation-delay: .5s; } .fr i.g3 { left: -4px; bottom: -4px; animation-delay: 1s; } .fr i.g4 { right: -4px; bottom: -4px; animation-delay: 1.5s; }
+@keyframes fr-gem { 50% { filter: brightness(1.6); } }
+.fr b.st { position: absolute; z-index: 5; width: 10px; aspect-ratio: 1; background: var(--star); opacity: 0;
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%); animation: fr-star 2.8s ease-in-out infinite; }
+@keyframes fr-star { 0%, 100% { opacity: 0; scale: .2; } 40% { opacity: 1; scale: 1.2; } 70% { opacity: .8; scale: .8; rotate: 90deg; } }
+.fr b.s1 { left: 6%; top: 6%; } .fr b.s2 { right: 6%; top: 40%; animation-delay: .9s; } .fr b.s3 { left: 40%; bottom: 3%; animation-delay: 1.7s; }
+.cc-big-im .fr b.st, .cc-feat .fr b.st { width: 16px; }
+.cc-big-im .frw, .cc-feat-im .frw { --bw: 7px; } .cc-big-im .frw.lv3, .cc-big-im .frw.lv4, .cc-feat-im .frw.lv3, .cc-feat-im .frw.lv4 { --bw: 8px; }
+.cc-big-im .fr i.gem, .cc-feat .fr i.gem { width: 18px; }
+.cc-card .frw { inset: 2px; }
+.cc-grade { z-index: 6; }
+/* the old holo sweep on tiles is replaced by the frames */
+.cc-card.t2:not(.x) .cc-im::after, .cc-card.t3:not(.x) .cc-im::after { content: none; }
+@media (prefers-reduced-motion: reduce) { .fr-ring, .fr-studs, .fr-foil, .fr i.gem, .fr b.st, .frw::before { animation: none !important; } }

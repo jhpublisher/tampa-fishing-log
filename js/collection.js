@@ -160,10 +160,21 @@ function cardImg(c, s) {
   return silhouette(c.shape);
 }
 
+// Disco Diamond frame level 0-4: rarity, one step up for grade 9, top frame for grade 10.
+function frameLv(c, s) {
+  const g = gradeOf(c, s) || 0;
+  return g >= 10 ? 4 : Math.min(4, c.tier + (g >= 9 ? 1 : 0));
+}
+function framed(c, s, inner) {
+  if (!s) return inner;
+  const lv = frameLv(c, s);
+  return `<span class="frw lv${lv}"><span class="fr"><span class="fr-ring"></span><span class="fr-studs"></span>${inner}<span class="fr-foil"></span>${lv >= 3 ? '<i class="gem g1"></i><i class="gem g2"></i><i class="gem g3"></i><i class="gem g4"></i>' : ''}${lv >= 2 ? '<b class="st s1"></b>' : ''}${lv >= 3 ? '<b class="st s2"></b><b class="st s3"></b>' : ''}</span></span>`;
+}
+
 function tile(c) {
   const s = state.stats.get(c.key);
   return `<button type="button" class="cc-card t${c.tier}${s ? '' : ' x'}" data-key="${esc(c.key)}" aria-label="${s ? esc(c.name) : 'Not caught yet'}">
-    <span class="cc-in"><span class="cc-im">${cardImg(c, s)}${slab(gradeOf(c, s), 1, s?.lenEst)}</span><span class="cc-nm">${s ? esc(c.name) : '? ? ?'}</span></span></button>`;
+    <span class="cc-in"><span class="cc-im">${framed(c, s, cardImg(c, s))}${slab(gradeOf(c, s), 1, s?.lenEst)}</span><span class="cc-nm">${s ? esc(c.name) : '? ? ?'}</span></span></button>`;
 }
 
 function render() {
@@ -178,7 +189,7 @@ function render() {
   if (newest) {
     const s = stats.get(newest.key);
     html += `<button type="button" class="cc-feat t${newest.tier}" data-key="${esc(newest.key)}">
-      <span class="cc-feat-in"><span class="cc-feat-im">${cardImg(newest, s)}${slab(gradeOf(newest, s), 1, s?.lenEst)}</span>
+      <span class="cc-feat-in"><span class="cc-feat-im">${framed(newest, s, cardImg(newest, s))}${slab(gradeOf(newest, s), 1, s?.lenEst)}</span>
       <span class="cc-feat-row"><span><span class="cc-kicker">Newest card</span><strong>${esc(newest.name)}</strong>
         <span class="cc-sub">First caught ${esc(fmtDate(s.first))}${s.firstSpot ? ' · ' + esc(s.firstSpot) : ''}</span></span>
         <span class="cc-rar t${newest.tier}">${TIERS[newest.tier]}</span></span>
@@ -282,7 +293,7 @@ function openCard(key, from) {
   const label = s ? `<div class="cc-label"><div><span class="cc-label-k">Bay Grade · #${String(c.no).padStart(3, '0')}</span><strong>${esc(c.name)}</strong>
       <span class="cc-label-s">${s.len ? `Best ${s.lenEst ? '~' : ''}${s.len}"${s.lenEst ? ' (est.)' : ''} · ` : ''}typical ${ty}", trophy ${tr}"+</span></div>${g ? slab(g, 0, s.lenEst) : '<span class="cc-grade none"><b>–</b><small>Add length</small></span>'}</div>` : '';
   const back = s ? `${label}
-    <div class="cc-big-im">${cardImg(c, s)}${!s.photo ? '<span class="cc-tag">Guide photo · add yours on My trips</span>' : ''}</div>
+    <div class="cc-big-im">${framed(c, s, cardImg(c, s))}${!s.photo ? '<span class="cc-tag">Guide photo · add yours on My trips</span>' : ''}</div>
     <div class="cc-big-row"><div><span class="cc-kicker">#${String(c.no).padStart(3, '0')} · ${esc(c.group)}</span><h2>${esc(c.name)}</h2></div><span class="cc-rar t${c.tier}">${TIERS[c.tier]}</span></div>
     <div class="cc-stats"><span>${s.count}<small>Caught</small></span><span>${lenTxt(s)}<small>Best</small></span><span>${s.wt ? s.wt + ' lb' : '—'}<small>Heaviest</small></span></div>
     ${g ? `<p class="cc-first cc-why">${esc(slot)}Grade ${g} of 10 for a ${s.lenEst ? 'roughly ' : ''}${s.len}" fish${s.lenEst ? ' (estimated; add the real length on My trips to firm it up)' : ''}: ${g >= 9 ? 'a true wall-hanger.' : g >= 7 ? 'well above a typical keeper.' : g >= 5 ? 'about a typical keeper.' : 'on the small side. Bigger ones are out there.'}</p>` : ''}
@@ -293,7 +304,7 @@ function openCard(key, from) {
     <p class="cc-first">Not caught yet. Log one on <b>My trips</b> to unlock this card.</p>`;
   dlg.querySelector('.cc-big').className = `cc-big t${c.tier}${s ? '' : ' x'}`;
   dlg.querySelector('.cc-face.back').innerHTML = back + `<div class="cc-acts">${c.guide ? `<button type="button" data-guide="${esc(c.guide)}">Species guide</button>` : ''}<button type="button" class="cc-close">Close</button></div>`;
-  dlg.querySelector('.cc-face.front').innerHTML = `<span class="cc-im">${s ? cardImg(c, s) : silhouette(c.shape)}</span><span class="cc-nm">${s ? esc(c.name) : '? ? ?'}</span>`;
+  dlg.querySelector('.cc-face.front').innerHTML = `<span class="cc-im">${s ? framed(c, s, cardImg(c, s)) : silhouette(c.shape)}</span><span class="cc-nm">${s ? esc(c.name) : '? ? ?'}</span>`;
   const card = dlg.querySelector('.cc-flip'), big = dlg.querySelector('.cc-big');
   card.classList.remove('shake');
   stopSpin(); setAngle(0); spin.v = 0; spin.power = shine(c, s);
