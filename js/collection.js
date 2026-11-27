@@ -82,12 +82,27 @@ function silhouette(shape = [26]) {
 // No bait or forage fish and no boat-only offshore fish. Anything else logged lands in "Other catches".
 const DECK = [
   ['Inshore classics', ['snook', 'redfish', 'trout', 'flounder', 'sheepshead', 'mangrove', 'blackdrum', 'pompano', 'ladyfish', 'jack', 'tarpon',
-    'sand-seatrout', 'southern-kingfish', 'gulf-kingfish', 'permit']],
-  ['Pier & bridge', ['spanish', 'cobia', 'gag', 'tripletail', 'blue-runner', 'bluefish', 'barracuda', 'lane-snapper', 'mutton-snapper', 'goliath-grouper']],
-  ['Sharks', ['blacktip', 'bonnethead', 'atlantic-sharpnose', 'nurse-shark', 'spinner-shark', 'bull-shark', 'lemon-shark', 'great-hammerhead']],
+    'sand-seatrout', 'silver-seatrout', 'southern-kingfish', 'gulf-kingfish', 'northern-kingfish', 'atlantic-croaker', 'banded-drum',
+    'permit', 'bonefish', 'tarpon-snook', 'fat-snook', 'swordspine-snook']],
+  ['Jacks & mackerels', ['spanish', 'king', 'cero', 'little-tunny', 'cobia', 'tripletail', 'bluefish', 'barracuda', 'blue-runner', 'african-pompano',
+    'bar-jack', 'horse-eye-jack', 'yellow-jack', 'lookdown', 'atlantic-moonfish', 'palometa', 'leatherjack']],
+  ['Snappers & groupers', ['lane-snapper', 'mutton-snapper', 'schoolmaster', 'dog-snapper', 'yellowtail-snapper', 'cubera-snapper',
+    'gag', 'redgrouper', 'black-grouper', 'goliath-grouper', 'black-sea-bass', 'sand-perch', 'hogfish']],
+  ['Porgies, grunts & triggers', ['grass-porgy', 'knobbed-porgy', 'jolthead-porgy', 'white-grunt', 'sailors-choice', 'margate', 'black-margate',
+    'porkfish', 'spadefish', 'gray-triggerfish', 'queen-triggerfish']],
+  ['Oddballs', ['hardhead-catfish', 'gafftopsail-catfish', 'atlantic-needlefish', 'houndfish', 'lizardfish', 'toadfish', 'southern-puffer',
+    'striped-burrfish', 'cowfish', 'atlantic-tenpounder', 'irish-pompano', 'atlantic-cutlassfish', 'sea-robin', 'moray', 'american-eel']],
+  ['Sharks', ['blacktip', 'bonnethead', 'atlantic-sharpnose', 'blacknose-shark', 'finetooth-shark', 'nurse-shark', 'spinner-shark', 'sandbar-shark',
+    'bull-shark', 'lemon-shark', 'scalloped-hammerhead', 'great-hammerhead', 'tiger-shark']],
+  ['Rays', ['atlantic-stingray', 'southern-stingray', 'bluntnose-stingray', 'yellow-stingray', 'butterfly-ray', 'cownose-ray', 'guitarfish', 'spotted-eagle-ray']],
 ];
 Object.assign(TIER_OVERRIDE, { 'sand-seatrout': 0, 'southern-kingfish': 0, 'gulf-kingfish': 0, 'blue-runner': 0, bluefish: 1, barracuda: 2,
-  'lane-snapper': 1, 'mutton-snapper': 2, bonnethead: 1, 'atlantic-sharpnose': 1, 'nurse-shark': 1, 'spinner-shark': 2, 'bull-shark': 2, 'lemon-shark': 2, 'great-hammerhead': 3 });
+  'lane-snapper': 1, 'mutton-snapper': 2, bonnethead: 1, 'atlantic-sharpnose': 1, 'nurse-shark': 1, 'spinner-shark': 2, 'bull-shark': 2, 'lemon-shark': 2, 'great-hammerhead': 3,
+  'silver-seatrout': 0, 'northern-kingfish': 0, 'atlantic-croaker': 0, 'banded-drum': 1, 'tarpon-snook': 2, 'fat-snook': 2, 'swordspine-snook': 3,
+  'african-pompano': 2, cero: 2, 'little-tunny': 2, 'cubera-snapper': 3, 'black-grouper': 3, 'black-sea-bass': 1, 'sand-perch': 0, 'white-grunt': 0,
+  'grass-porgy': 0, 'hardhead-catfish': 0, 'gafftopsail-catfish': 0, 'atlantic-needlefish': 0, lizardfish: 0, toadfish: 0, 'southern-puffer': 0,
+  'atlantic-cutlassfish': 1, 'sea-robin': 1, moray: 2, 'blacknose-shark': 1, 'finetooth-shark': 1, 'sandbar-shark': 2, 'scalloped-hammerhead': 3,
+  'tiger-shark': 3, 'atlantic-stingray': 0, 'southern-stingray': 0, 'bluntnose-stingray': 0, 'cownose-ray': 1, 'yellow-stingray': 1 });
 Object.assign(SIZE, { 'sand-seatrout': [12, 18], 'southern-kingfish': [12, 18], 'gulf-kingfish': [12, 18], 'blue-runner': [12, 20], bluefish: [16, 30],
   barracuda: [30, 50], 'lane-snapper': [10, 16], 'mutton-snapper': [18, 30], bonnethead: [30, 48], 'atlantic-sharpnose': [28, 40], 'nurse-shark': [72, 110],
   'spinner-shark': [60, 90], 'bull-shark': [72, 110], 'lemon-shark': [72, 110], 'great-hammerhead': [96, 150] });
@@ -142,7 +157,7 @@ function badges(stats, trips) {
   const night = trips.some(t => (t.catches || []).some(c => { const tm = c.time || t.start || ''; const h = +tm.slice(0, 2); return tm && (h >= 21 || h < 4); }));
   const total = [...stats.values()].reduce((a, s) => a + s.count, 0);
   const big = [...stats.values()].some(s => s.real >= 30);
-  const pier = caught.filter(k => groupOf(k) === 'Pier & bridge').length;
+  const pier = caught.filter(k => groupOf(k) === 'Snappers & groupers').length;
   const sharks = caught.some(k => groupOf(k) === 'Sharks' || fgOf(k) === 'Sharks');
   const trophy = caught.some(k => ALL.find(c => c.key === k)?.tier === 3);
   return [
@@ -152,7 +167,7 @@ function badges(stats, trips) {
     { i: '🌙', name: 'Night Owl', how: 'Catch a fish after 9 PM', got: night },
     { i: '📏', name: 'Big One', how: 'Any fish 30 inches or longer', got: big },
     { i: '🦈', name: 'Shark Week', how: 'Catch any shark', got: sharks },
-    { i: '⚓', name: 'Pier Rat', how: '5 different pier & bridge fish', got: pier >= 5 },
+    { i: '⚓', name: 'Structure Hunter', how: '5 different snappers or groupers', got: pier >= 5 },
     { i: '💯', name: 'Century', how: '100 fish logged', got: total >= 100 },
     { i: '👑', name: 'Silver King', how: 'Land a tarpon', got: has('tarpon') },
     { i: '🏆', name: 'Trophy Hunter', how: 'Collect any Trophy card', got: trophy },
