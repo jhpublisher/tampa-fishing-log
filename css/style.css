@@ -184,9 +184,10 @@ body[data-view="today"] .hero h1 { margin-bottom: clamp(200px, 58vw, 300px); } /
 .pick-list li.active .pick-row { color: var(--coral); }
 .pick-list .star { position: static; }
 .pick-row { flex: 1; text-align: left; border: 0; border-radius: 0; background: none; padding: 10px 0; font-weight: 500; }
-.here-map { margin-left: 6px; }
+.here-map { margin-left: 6px; text-transform: uppercase; letter-spacing: .1em; font: 700 .85rem var(--label); padding: 8px 16px; }
 .sheet-actions { margin: 10px 0 4px; } .sheet-actions button { flex: 1; }
-.row-map { flex: none; width: 44px; height: 44px; min-height: 44px; padding: 0; border: 0; background: none; font-size: 1.15rem; }
+.row-map::after { content: ""; position: absolute; inset: -6px -2px; } /* 44px tap area */
+.row-map { position: relative; flex: none; min-height: 32px; height: 32px; padding: 0 12px; margin-right: 2px; border: 1.5px solid var(--flats); border-radius: 999px; background: none; color: var(--flats); font: 700 .78rem var(--label); text-transform: uppercase; letter-spacing: .1em; }
 .map-sheet #spot-map { height: min(45vh, 400px); margin: 8px 0 10px; }
 .map-pick { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .map-pick strong { font: 400 1.1rem var(--display); color: var(--gulf); }

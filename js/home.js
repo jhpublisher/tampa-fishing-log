@@ -344,7 +344,7 @@ function renderSheet() {
     const p = place(key); if (!p || (q && !p.name.toLowerCase().includes(q))) return '';
     const on = favs.includes(key);
     return `<li class="${key === active ? 'active' : ''}"><button type="button" class="pick-row" data-key="${esc(key)}">${esc(p.name)}${p.custom ? ' <span class="muted small">(mine)</span>' : ''}${p.id ? ` <span class="acc-icons" aria-label="${accessOf(p).join(', ')}">${accessOf(p).map(a => ACCESS[a].split(' ')[0]).join('')}</span>` : ''}</button>
-      <button type="button" class="row-map" data-map="${esc(key)}" aria-label="Show ${esc(p.name)} on a map">🗺</button>
+      <button type="button" class="row-map" data-map="${esc(key)}" aria-label="Show ${esc(p.name)} on a map">Map</button>
       <button type="button" class="star ${on ? 'on' : ''}" data-star="${esc(key)}" aria-pressed="${on}" aria-label="${on ? 'Remove from' : 'Add to'} My spots">${on ? '★' : '☆'}</button></li>`;
   };
   const group = (title, keys, fold) => {
