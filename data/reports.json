@@ -1,6 +1,18 @@
 {
- "updated": "2026-11-27T12:18:57.973Z",
+ "updated": "2026-11-27T23:28:08.977Z",
  "items": [
+  {
+   "title": "Black Friday at Hubbard's Marina",
+   "url": "https://www.fox13news.com/video/fmc-qqo4fgswxa50n891",
+   "date": "2026-11-27T15:52:57.000Z",
+   "summary": "Captain Dylan Hubbard with Hubbard’s Marina says with the backside of the full moon keeping water moving and a calmer atmosphere settling in, this weekend…",
+   "source": "FOX 13 Friday report",
+   "area": "Tampa Bay",
+   "mentions": {
+    "fish": [],
+    "at": []
+   }
+  },
   {
    "title": "Fish should be active ahead of holiday",
    "url": "https://www.fox13news.com/video/fmc-07ruex614fed2e64",
@@ -130,18 +142,6 @@
    }
   },
   {
-   "title": "Fish feel cold front coming",
-   "url": "https://www.fox13news.com/video/fmc-if1h21q3noohtuuo",
-   "date": "2026-10-16T16:23:39.000Z",
-   "summary": "Captain Dylan Hubbard with Hubbard’s Marina says anglers are trying to get on the water ahead of a cold front and take advantage of the pre-front bite.",
-   "source": "FOX 13 Friday report",
-   "area": "Tampa Bay",
-   "mentions": {
-    "fish": [],
-    "at": []
-   }
-  },
-  {
    "title": "October: The Month of Opportunities! By: Capt. George Hastick",
    "url": "https://coastalanglermag.com/october-the-month-of-opportunities-by-capt-george-hastick/",
    "date": "2026-10-01T08:00:42.000Z",
@@ -163,7 +163,7 @@
   {
    "source": "FOX 13 Friday report",
    "ok": true,
-   "count": 8
+   "count": 9
   },
   {
    "source": "Hubbard's Marina",
