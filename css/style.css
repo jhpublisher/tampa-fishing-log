@@ -493,6 +493,10 @@ body[data-view="cards"] { background: #0b1d24; }
 .cc-feat-in { display: block; background: #13262e; border-radius: 12px; overflow: hidden; }
 .cc-feat-im { display: block; height: 180px; background: #0e2128; }
 .cc-feat-im img, .cc-im img, .cc-big-im img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cc-ph { position: relative; display: block; width: 100%; height: 100%; overflow: hidden; background: #0e2128; }
+.cc-ph img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cc-ph img.bg { object-fit: cover; filter: blur(14px) brightness(.7) saturate(1.2); transform: scale(1.2); }
+.cc-ph img.fg { object-fit: contain; }
 .cc-feat-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 12px; }
 .cc-feat-row strong { display: block; font: 400 1.3rem/1.1 var(--display); color: #e8efe9; }
 .cc-kicker { display: block; font: 700 .7rem var(--label); letter-spacing: .12em; text-transform: uppercase; color: #4fbfb6; }
@@ -627,7 +631,7 @@ body[data-view="cards"] { background: #0b1d24; }
 .cc-feat .frw::before, .cc-sheet .frw::before { animation: fr-pulse 2.4s ease-in-out infinite; }
 @keyframes fr-pulse { 50% { opacity: calc(var(--halo) * .5); } }
 .fr { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; }
-.fr > img, .fr > .cc-noimg { position: absolute; inset: var(--bw); width: calc(100% - var(--bw) * 2); height: calc(100% - var(--bw) * 2); object-fit: cover; border-radius: 5px; z-index: 2; background: #0e2128; display: flex; align-items: center; justify-content: center; }
+.fr > img, .fr > .cc-noimg, .fr > .cc-ph { position: absolute; inset: var(--bw); width: calc(100% - var(--bw) * 2); height: calc(100% - var(--bw) * 2); object-fit: cover; border-radius: 5px; z-index: 2; background: #0e2128; display: flex; align-items: center; justify-content: center; }
 .fr-ring { position: absolute; left: 50%; top: 50%; width: 180%; aspect-ratio: 1; translate: -50% -50%;
   background: var(--ring); animation: fr-spin var(--spd) linear infinite; will-change: rotate; }
 .frw.lv0 .fr-ring { animation: none; }
@@ -662,6 +666,8 @@ body[data-view="cards"] { background: #0b1d24; }
 /* ---------- not caught yet: frosted mystery ---------- */
 .cc-frost { position: absolute; inset: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; }
 .cc-frost img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(6px) saturate(1.3); transform: scale(1.25); }
+.cc-frost img.bg { filter: blur(14px) brightness(.7) saturate(1.2); }
+.cc-frost img.fg { object-fit: contain; transform: none; }
 .cc-frost::after { content: ""; position: absolute; inset: 0; background: linear-gradient(160deg, rgba(255, 255, 255, .25), rgba(255, 255, 255, .05) 50%, rgba(255, 255, 255, .18)); }
 .cc-frost .cc-sil { position: relative; width: 80%; }
 .cc-frost-q { position: relative; z-index: 2; font: 400 2rem/1 var(--display); color: rgba(255, 255, 255, .92); text-shadow: 0 0 12px var(--tierc, #9fb2b3); }

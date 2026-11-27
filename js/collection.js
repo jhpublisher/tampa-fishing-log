@@ -110,7 +110,7 @@ Object.assign(SIZE, { 'sand-seatrout': [12, 18], 'southern-kingfish': [12, 18], 
   'spinner-shark': [60, 90], 'bull-shark': [72, 110], 'lemon-shark': [72, 110], 'great-hammerhead': [96, 150] });
 function makeCard(key, group) {
   const sp = SPECIES.find(s => s.id === key);
-  if (sp) return { key, name: sp.name.replace(/ \(.*\)$/, ''), group, fg: group, guide: key, tier: GUIDE_TIER[key] ?? 1, shape: SHAPE[key], ref: GUIDE[key]?.photos?.[0]?.src, credit: GUIDE[key]?.photos?.[0] ? `${GUIDE[key].photos[0].by}, ${GUIDE[key].photos[0].lic}, iNaturalist` : '' };
+  if (sp) return { key, name: sp.name.replace(/ \(.*\)$/, ''), group, fg: group, guide: key, tier: GUIDE_TIER[key] ?? 1, shape: SHAPE[key], ref: CARD_PHOTO[key]?.src || GUIDE[key]?.photos?.[0]?.src, credit: CARD_PHOTO[key] ? CARD_PHOTO[key].credit + ', iNaturalist' : GUIDE[key]?.photos?.[0] ? `${GUIDE[key].photos[0].by}, ${GUIDE[key].photos[0].lic}, iNaturalist` : '' };
   const f = fishById(key);
   return f ? { key, name: f.name, group, fg: f.group, tier: TIER_OVERRIDE[key] ?? GROUP_TIER[f.group] ?? 1, shape: GROUP_SHAPE[f.group], ref: CARD_PHOTO[key]?.src, credit: CARD_PHOTO[key]?.credit || '' } : null;
 }
@@ -181,15 +181,20 @@ function badges(stats, trips) {
 // ---------- render ----------
 let state = { cards: [], stats: new Map(), filter: 'all', tier: null, loaded: false };
 
+// Whole fish fits (contain) over a blurred fill of the same photo, so heads and tails are never cropped.
+function photoBox(src) {
+  const u = esc(src);
+  return `<span class="cc-ph"><img class="bg" src="${u}" alt="" loading="lazy"><img class="fg" src="${u}" alt="" loading="lazy"></span>`;
+}
 function cardImg(c, s) {
-  if (s?.photo) return `<img src="${esc(s.photo)}" alt="" loading="lazy">`;
-  if (s && c.ref) return `<img src="${esc(c.ref)}" alt="" loading="lazy">`;
+  if (s?.photo) return photoBox(s.photo);
+  if (s && c.ref) return photoBox(c.ref);
   if (s) return `<div class="cc-noimg">${silhouette(c.shape).replace('class="cc-sil"', 'class="cc-sil lit"')}</div>`;
   return frosted(c);
 }
 // Not caught yet: a blurry photo behind frosted glass with a "?", glowing in the rarity color.
 function frosted(c) {
-  return `<span class="cc-frost">${c.ref ? `<img src="${esc(c.ref)}" alt="" loading="lazy">` : silhouette(c.shape)}<span class="cc-frost-q">?</span></span>`;
+  return `<span class="cc-frost">${c.ref ? `<img class="bg" src="${esc(c.ref)}" alt="" loading="lazy"><img class="fg" src="${esc(c.ref)}" alt="" loading="lazy">` : silhouette(c.shape)}<span class="cc-frost-q">?</span></span>`;
 }
 
 // Disco Diamond frame level 0-4: rarity, one step up for grade 9, top frame for grade 10.
@@ -293,10 +298,12 @@ function setAngle(a) {
 }
 function stopSpin() { cancelAnimationFrame(spin.raf); spin.raf = 0; }
 // ease to an angle
-function tweenTo(target, ms = 700, done) {
+const CALM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const MAX_V = .3; // deg per ms: a hard flick tops out under one turn per second
+function tweenTo(target, ms = 700, done, smooth) {
   stopSpin(); const from = spin.a, t0 = performance.now();
   const step = now => {
-    const k = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - k, 3);
+    const k = Math.min(1, (now - t0) / ms), e = smooth ? (1 - Math.cos(Math.PI * k)) / 2 : 1 - Math.pow(1 - k, 3);
     setAngle(from + (target - from) * e);
     if (k < 1) spin.raf = requestAnimationFrame(step); else { spin.raf = 0; done?.(); }
   };
@@ -307,10 +314,10 @@ function coast() {
   stopSpin(); let last = performance.now(), crossed = Math.floor(spin.a / 180);
   const step = now => {
     const dt = Math.min(40, now - last); last = now;
-    setAngle(spin.a + spin.v * dt); spin.v *= Math.pow(.993, dt);
+    setAngle(spin.a + spin.v * dt); spin.v *= Math.pow(.985, dt);
     const f = Math.floor(spin.a / 180);
     if (f !== crossed) { crossed = f; if (spin.power) burst(.4); } // a little burst each time a face goes by
-    if (Math.abs(spin.v) > .06) spin.raf = requestAnimationFrame(step);
+    if (Math.abs(spin.v) > .04) spin.raf = requestAnimationFrame(step);
     else tweenTo(Math.round(spin.a / 180) * 180, 450);
   };
   spin.raf = requestAnimationFrame(step);
@@ -356,10 +363,9 @@ function openCard(key, from) {
   setTimeout(() => {
     navigator.vibrate?.(s ? [12, 40, 12] : 30);
     if (!s) { card.classList.add('shake'); setTimeout(() => { card.classList.remove('shake'); tweenTo(180, 700); }, 420); return; }
-    // better cards spin more: 1.5 turns, up to 2.5 for the best
-    const turns = spin.power > .7 ? 900 : spin.power > .4 ? 720 : 540;
-    tweenTo(turns, 900 + turns / 2, () => { setAngle(180); burst(1); });
-    setTimeout(() => burst(.5), 250);
+    // one slow, gentle turn (skipped if the phone asks for reduced motion)
+    if (CALM) { burst(1); return; }
+    tweenTo(360, 2400, () => { setAngle(0); burst(1); }, true);
   }, 330);
 }
 
@@ -394,7 +400,7 @@ export async function open() {
   // catches named something not in the list still get a card
   const extra = [...state.stats.keys()].filter(k => !ALL.some(c => c.key === k)).map((k, i) => ({
     key: k, name: fishById(k)?.name || byId(k)?.name?.replace(/ \(.*\)$/, '') || state.stats.get(k).name || k.replace(/^name:/, ''), group: 'Other catches', extra: true,
-    fg: fishById(k)?.group, tier: TIER_OVERRIDE[k] ?? GUIDE_TIER[k] ?? GROUP_TIER[fishById(k)?.group] ?? 1, shape: SHAPE[k] || GROUP_SHAPE[fishById(k)?.group], ref: GUIDE[k]?.photos?.[0]?.src, no: ALL.length + i + 1,
+    fg: fishById(k)?.group, tier: TIER_OVERRIDE[k] ?? GUIDE_TIER[k] ?? GROUP_TIER[fishById(k)?.group] ?? 1, shape: SHAPE[k] || GROUP_SHAPE[fishById(k)?.group], ref: CARD_PHOTO[k]?.src || GUIDE[k]?.photos?.[0]?.src, no: ALL.length + i + 1,
   }));
   state.cards = [...ALL, ...extra];
   state.loaded = true;
@@ -426,14 +432,15 @@ export function init({ goGuide }) {
     const d = spin.drag; if (!d) return;
     const now = performance.now(), dx = e.clientX - d.x;
     if (Math.abs(dx) > 6) d.moved = true;
-    const nv = (e.clientX - d.lx) * .7 / Math.max(1, now - d.t);
-    spin.v = spin.v * .6 + nv * .4; d.t = now; d.lx = e.clientX;
-    setAngle(d.a + dx * .7);
+    const nv = (e.clientX - d.lx) * .5 / Math.max(1, now - d.t);
+    spin.v = Math.max(-MAX_V, Math.min(MAX_V, spin.v * .6 + nv * .4)); d.t = now; d.lx = e.clientX;
+    setAngle(d.a + dx * .5);
   });
   const up = () => {
     const d = spin.drag; if (!d) return; spin.drag = null;
     if (!d.moved) { tweenTo(Math.round(spin.a / 180) * 180 + 180, 600, () => burst(.6)); return; }
-    if (Math.abs(spin.v) > .3) burst(.5);
+    if (Math.abs(spin.v) > .2) burst(.5);
+    if (CALM) { spin.v = 0; tweenTo(Math.round(spin.a / 180) * 180, 450); return; }
     coast();
   };
   big.addEventListener('pointerup', up); big.addEventListener('pointercancel', up);
