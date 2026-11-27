@@ -26,6 +26,30 @@ const GROUP_TIER = {
 };
 const TIER_OVERRIDE = { 'goliath-grouper': 3, 'permit': 3, 'bonefish': 3, 'greater-amberjack': 2, 'manta': 3 };
 
+// Grading: [typical keeper, trophy] length in inches. Rough Tampa Bay numbers, a judgment call.
+const SIZE = {
+  snook: [26, 40], redfish: [24, 40], trout: [17, 26], sheepshead: [14, 22], mangrove: [12, 20], flounder: [15, 24],
+  blackdrum: [18, 40], spanish: [17, 26], king: [32, 50], cobia: [38, 55], pompano: [13, 18], tripletail: [18, 28],
+  redgrouper: [22, 32], gag: [26, 40], hogfish: [16, 26], tarpon: [50, 80], jack: [20, 36], ladyfish: [16, 26], blacktip: [48, 72],
+  'goliath-grouper': [50, 90], permit: [20, 36], 'greater-amberjack': [34, 50], bonefish: [18, 28], 'red-snapper': [20, 32],
+};
+const GROUP_SIZE = {
+  'Bait': [6, 12], 'Drums & croakers': [12, 20], 'Other inshore': [14, 26], 'Porgies & grunts': [12, 20], 'Jacks & pompano': [18, 36],
+  'Snappers': [14, 26], 'Flatfish': [14, 24], 'Mackerels & tunas': [24, 45], 'Snook & tarpon': [20, 30], 'Groupers & sea basses': [22, 40],
+  'Triggerfish & filefish': [14, 22], 'Reef & deep water': [16, 30], 'Eels': [24, 48], 'Rays': [24, 60], 'Sharks': [40, 84], 'Billfish & offshore': [50, 90],
+};
+const GRADE_NAME = ['', 'Bait', 'Tiny', 'Small', 'Fair', 'Decent', 'Keeper', 'Solid', 'Bruiser', 'Monster', 'Legend'];
+// Up to typical length climbs 1 to 5, then typical to trophy climbs 5 to 10.
+export function grade(len, size) {
+  if (!len || !size) return null;
+  const [t, x] = size;
+  const g = len <= t ? 1 + 4 * Math.max(0, (len - 0.4 * t) / (0.6 * t)) : 5 + 5 * (len - t) / (x - t);
+  return Math.max(1, Math.min(10, Math.round(g)));
+}
+const sizeOf = c => SIZE[c.key] || GROUP_SIZE[c.group] || [16, 30];
+const gradeOf = (c, s) => grade(s?.len, sizeOf(c));
+const slab = (g, small) => g ? `<span class="cc-grade${small ? ' sm' : ''} g${g}"><b>${g}</b>${small ? '' : `<small>${GRADE_NAME[g]}</small>`}</span>` : '';
+
 // Fish shapes for the "?" cards: [body height, forked tail]
 const SHAPE = {
   snook: [24], redfish: [28], trout: [24], sheepshead: [36], mangrove: [30], flounder: [34], blackdrum: [36],
@@ -116,7 +140,7 @@ function badges(stats, trips) {
 }
 
 // ---------- render ----------
-let state = { cards: [], stats: new Map(), filter: 'all', loaded: false };
+let state = { cards: [], stats: new Map(), filter: 'all', tier: null, loaded: false };
 
 function cardImg(c, s) {
   if (s?.photo) return `<img src="${esc(s.photo)}" alt="" loading="lazy">`;
@@ -128,7 +152,7 @@ function cardImg(c, s) {
 function tile(c) {
   const s = state.stats.get(c.key);
   return `<button type="button" class="cc-card t${c.tier}${s ? '' : ' x'}" data-key="${esc(c.key)}" aria-label="${s ? esc(c.name) : 'Not caught yet'}">
-    <span class="cc-in"><span class="cc-im">${cardImg(c, s)}</span><span class="cc-nm">${s ? esc(c.name) : '? ? ?'}</span></span></button>`;
+    <span class="cc-in"><span class="cc-im">${cardImg(c, s)}${slab(gradeOf(c, s), 1)}</span><span class="cc-nm">${s ? esc(c.name) : '? ? ?'}</span></span></button>`;
 }
 
 function render() {
@@ -143,7 +167,7 @@ function render() {
   if (newest) {
     const s = stats.get(newest.key);
     html += `<button type="button" class="cc-feat t${newest.tier}" data-key="${esc(newest.key)}">
-      <span class="cc-feat-in"><span class="cc-feat-im">${cardImg(newest, s)}</span>
+      <span class="cc-feat-in"><span class="cc-feat-im">${cardImg(newest, s)}${slab(gradeOf(newest, s), 1)}</span>
       <span class="cc-feat-row"><span><span class="cc-kicker">Newest card</span><strong>${esc(newest.name)}</strong>
         <span class="cc-sub">First caught ${esc(fmtDate(s.first))}${s.firstSpot ? ' · ' + esc(s.firstSpot) : ''}</span></span>
         <span class="cc-rar t${newest.tier}">${TIERS[newest.tier]}</span></span>
@@ -154,16 +178,18 @@ function render() {
   const bs = badges(stats, state.trips || []);
   html += `<div class="cc-sec"><span>Badges · ${bs.filter(b => b.got).length} of ${bs.length}</span></div>
     <div class="cc-badges">${bs.map((b, i) => `<button type="button" class="cc-badge${b.got ? '' : ' off'}" data-badge="${i}"><i>${b.i}</i>${esc(b.name)}</button>`).join('')}</div>`;
-  const per = TIERS.map((t, i) => `<span class="cc-rar t${i}">${t} ${cards.filter(c => c.tier === i && stats.has(c.key)).length}/${cards.filter(c => c.tier === i).length}</span>`).join('');
-  html += `<div class="cc-legend">${per}</div>
+  const per = TIERS.map((t, i) => `<button type="button" data-tier="${i}" class="cc-rar t${i}${state.tier === i ? ' on' : ''}${state.tier != null && state.tier !== i ? ' dim' : ''}">${t} ${cards.filter(c => c.tier === i && stats.has(c.key)).length}/${cards.filter(c => c.tier === i).length}</button>`).join('');
+  html += `<div class="cc-legend">${per}</div>${state.tier != null ? `<p class="cc-note">Showing ${TIERS[state.tier]} only, best grade first. Tap it again to show all.</p>` : ''}
     <div class="cc-chips" role="group" aria-label="Show">${[['all', 'All'], ['caught', `Caught ${caught.length}`], ['not', 'Not yet']].map(([k, l]) => `<button type="button" data-filter="${k}" class="${state.filter === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
-  const show = cards.filter(c => state.filter === 'all' || (state.filter === 'caught') === stats.has(c.key));
+  const show = cards.filter(c => (state.filter === 'all' || (state.filter === 'caught') === stats.has(c.key)) && (state.tier == null || c.tier === state.tier));
+  if (state.tier != null) show.sort((a, b) => (gradeOf(b, stats.get(b.key)) || 0) - (gradeOf(a, stats.get(a.key)) || 0) || stats.has(b.key) - stats.has(a.key));
   const groups = [...new Set(show.map(c => c.group))];
-  html += groups.map(g => {
+  const groupHtml = groups.map(g => {
     const inG = cards.filter(c => c.group === g);
     return `<div class="cc-sec"><span>${esc(g)}</span><span>${inG.filter(c => stats.has(c.key)).length} / ${inG.length}</span></div>
       <div class="cc-grid">${show.filter(c => c.group === g).map(tile).join('')}</div>`;
-  }).join('') || '<p class="muted small">Nothing here yet.</p>';
+  });
+  html += (state.tier != null ? `<div class="cc-grid">${show.map(tile).join('')}</div>` : groupHtml.join('')) || '<p class="muted small">Nothing here yet.</p>';
   host.innerHTML = html;
   host._badges = bs;
 }
@@ -185,10 +211,15 @@ function openCard(key, from) {
   const c = state.cards.find(x => x.key === key); if (!c) return;
   const s = state.stats.get(key);
   const dlg = $('#cc-sheet');
-  const back = s ? `
+  const g = gradeOf(c, s), [ty, tr] = sizeOf(c), rule = c.guide ? byId(c.guide) : null;
+  const slot = rule?.min && rule?.max ? `Legal slot ${rule.min}–${rule.max}". ` : rule?.min ? `Legal min ${rule.min}". ` : '';
+  const label = s ? `<div class="cc-label"><div><span class="cc-label-k">Bay Grade · #${String(c.no).padStart(3, '0')}</span><strong>${esc(c.name)}</strong>
+      <span class="cc-label-s">${s.len ? `Best ${s.len}" · ` : ''}typical ${ty}", trophy ${tr}"+</span></div>${g ? slab(g) : '<span class="cc-grade none"><b>–</b><small>Add length</small></span>'}</div>` : '';
+  const back = s ? `${label}
     <div class="cc-big-im">${cardImg(c, s)}${!s.photo ? '<span class="cc-tag">Guide photo · add yours on My trips</span>' : ''}</div>
     <div class="cc-big-row"><div><span class="cc-kicker">#${String(c.no).padStart(3, '0')} · ${esc(c.group)}</span><h2>${esc(c.name)}</h2></div><span class="cc-rar t${c.tier}">${TIERS[c.tier]}</span></div>
     <div class="cc-stats"><span>${s.count}<small>Caught</small></span><span>${s.len ? s.len + ' in' : '—'}<small>Best</small></span><span>${s.wt ? s.wt + ' lb' : '—'}<small>Heaviest</small></span></div>
+    ${g ? `<p class="cc-first cc-why">${esc(slot)}Grade ${g} of 10 for a ${s.len}" fish: ${g >= 9 ? 'a true wall-hanger.' : g >= 7 ? 'well above a typical keeper.' : g >= 5 ? 'about a typical keeper.' : 'on the small side. Bigger ones are out there.'}</p>` : ''}
     <p class="cc-first">⭐ First caught ${esc(fmtDate(s.first))}${s.firstSpot ? ' at ' + esc(s.firstSpot) : ''} · ${s.trips.size} trip${s.trips.size > 1 ? 's' : ''}</p>`
     : `
     <div class="cc-big-im dark">${silhouette(c.shape)}</div>
@@ -253,6 +284,7 @@ export function init({ goGuide }) {
   const host = $('#cc-body'); if (!host) return;
   host.addEventListener('click', e => {
     const f = e.target.closest('[data-filter]'); if (f) { state.filter = f.dataset.filter; render(); return; }
+    const t = e.target.closest('[data-tier]'); if (t) { const i = +t.dataset.tier; state.tier = state.tier === i ? null : i; render(); return; }
     const b = e.target.closest('[data-badge]');
     if (b) { const x = host._badges[+b.dataset.badge]; toastBadge(b, x); return; }
     const c = e.target.closest('[data-key]'); if (c) openCard(c.dataset.key, c);
