@@ -12,15 +12,11 @@ const MAX_AGE_DAYS = 60;
 const SOURCES = [
   { name: 'Coastal Angler · Tampa Bay', area: 'Tampa Bay', type: 'rss',
     url: 'https://coastalanglermag.com/category/tampa-bay/tampa-bay-fishing-reports-forecasts/feed/' },
-  { name: 'Tampa Bay Beacons', area: 'Tampa Bay', type: 'rss', match: /fish/i, url: [
-    'https://www.tampabaybeacons.com/?s=fishin&feed=rss2', 'https://www.tampabaybeacons.com/tag/fishing/feed/',
-    'https://www.tampabaybeacons.com/category/outdoors/feed/', 'https://www.tampabaybeacons.com/feed/'] },
+  { name: 'FOX 13 Friday report', area: 'Tampa Bay', type: 'rss', match: /fishing report/i, url: [
+    'https://www.fox13news.com/rss/tags/science,wild-nature,fishing-report', 'https://www.fox13news.com/rss/category/sports'] },
   { name: "Hubbard's Marina", area: "John's Pass", type: 'wp', url: 'https://www.hubbardsmarina.com', search: 'fishing report', match: /report/i },
-  { name: 'Tampa Free Press', area: 'Gulf Coast', type: 'rss', match: /fishing report/i, url: [
-    'https://www.tampafp.com/?s=fishing+report&feed=rss2', 'https://www.tampafp.com/tag/fishing-report/feed/', 'https://www.tampafp.com/feed/'] },
-  { name: 'r/floridafishing', area: 'Tampa · St. Pete · Clearwater', type: 'rss',
-    url: ['https://www.reddit.com/r/floridafishing/new/.rss?limit=100', 'https://old.reddit.com/r/floridafishing/new/.rss', 'https://www.reddit.com/r/floridafishing.rss'],
-    match: /tampa|st\.? ?pete|petersburg|clearwater|skyway|pinellas|hillsborough|apollo beach|ruskin|dunedin|gandy|fort de ?soto|john'?s pass|madeira|treasure island|safety harbor|oldsmar|bradenton|anna maria|tarpon springs/i },
+  { name: 'Boatsetter', area: 'Tampa · St. Pete', type: 'rss', match: /fishing report.*(tampa|st\.? ?pete|petersburg|clearwater)/i, url: [
+    'https://boatsetter.com/boating-resources/feed', 'https://boatsetter.com/feed'] },
 ];
 
 const decode = s => String(s || '')
