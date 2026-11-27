@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-27T02:11:35.546Z",
+ "updated": "2026-11-27T02:10:16.684Z",
  "items": [
   {
    "title": "The life of the Redfish By: Capt. George Hastick",
@@ -32,34 +32,18 @@
    "summary": "Flounder–The Overlooked Fish Tampa Bay offers anglers a wide variety of species, including redfish, snook, trout, and cobia. As a …",
    "source": "Coastal Angler · Tampa Bay",
    "area": "Tampa Bay"
-  },
-  {
-   "title": "Florida’s Night Herons By: Wes Tallyn",
-   "url": "https://coastalanglermag.com/floridas-night-herons-by-wes-tallyn/",
-   "date": "2026-11-01T08:35:33.000Z",
-   "summary": "There are two species of herons that are nocturnal in Florida and are not as often seen as the other …",
-   "source": "Coastal Angler · Tampa Bay",
-   "area": "Tampa Bay"
-  },
-  {
-   "title": "October: The Month of Opportunities! By: Capt. George Hastick",
-   "url": "https://coastalanglermag.com/october-the-month-of-opportunities-by-capt-george-hastick/",
-   "date": "2026-10-01T08:00:42.000Z",
-   "summary": "October is one of the best months of the year for fishing in St. Petersburg, Florida. As summer’s intense heat …",
-   "source": "Coastal Angler · Tampa Bay",
-   "area": "Tampa Bay"
   }
  ],
  "sources": [
   {
    "source": "Coastal Angler · Tampa Bay",
    "ok": true,
-   "count": 10
+   "count": 8
   },
   {
    "source": "Tampa Bay Beacons",
-   "ok": true,
-   "count": 0
+   "ok": false,
+   "error": "Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON"
   },
   {
    "source": "Hubbard's Marina",
@@ -68,8 +52,8 @@
   },
   {
    "source": "Tampa Free Press",
-   "ok": true,
-   "count": 0
+   "ok": false,
+   "error": "HTTP 401"
   },
   {
    "source": "r/floridafishing",
