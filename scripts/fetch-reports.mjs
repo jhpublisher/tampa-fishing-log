@@ -12,11 +12,8 @@ const MAX_AGE_DAYS = 60;
 const SOURCES = [
   { name: 'Coastal Angler · Tampa Bay', area: 'Tampa Bay', type: 'rss',
     url: 'https://coastalanglermag.com/category/tampa-bay/tampa-bay-fishing-reports-forecasts/feed/' },
-  { name: 'FOX 13 Friday report', area: 'Tampa Bay', type: 'rss', match: /fishing report/i, url: [
-    'https://www.fox13news.com/rss/tags/science,wild-nature,fishing-report', 'https://www.fox13news.com/rss/category/sports'] },
+  { name: 'FOX 13 Friday report', area: 'Tampa Bay', type: 'rss', url: 'https://www.fox13news.com/rss/tags/science,wild-nature,fishing-report' },
   { name: "Hubbard's Marina", area: "John's Pass", type: 'wp', url: 'https://www.hubbardsmarina.com', search: 'fishing report', match: /report/i },
-  { name: 'Boatsetter', area: 'Tampa · St. Pete', type: 'rss', match: /fishing report.*(tampa|st\.? ?pete|petersburg|clearwater)/i, url: [
-    'https://boatsetter.com/boating-resources/feed', 'https://boatsetter.com/feed'] },
 ];
 
 const decode = s => String(s || '')
