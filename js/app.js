@@ -152,7 +152,11 @@ function addCatchRow(c = {}) {
     } else res.textContent = '';
   };
   sel.onchange = update; $('[name=length]', fs).oninput = update; $('[name=kept]', fs).onchange = update;
-  $('.remove-catch', fs).onclick = () => fs.remove();
+  $('.remove-catch', fs).onclick = () => {
+    // easy to hit by accident with wet hands, so ask before throwing away a filled-in catch
+    const filled = [...fs.querySelectorAll('input, select, textarea')].some(i => i.type === 'checkbox' ? i.checked : i.type !== 'hidden' && i.value);
+    if (!filled || confirm('Remove this catch?')) fs.remove();
+  };
 
   $('[name=photo]', fs).onchange = async e => {
     const file = e.target.files[0]; if (!file) return;
@@ -283,8 +287,8 @@ function statusChip(sp) {
 function speciesCard(sp) {
   const g = GUIDE[sp.id] || { id: [], photos: [], marks: [] };
   const fl = sp.fl ? ' fork length' : ' total length';
-  const size = sp.cr ? 'None. Release every tarpon.' : sp.min && sp.max ? `${sp.min}–${sp.max}"${fl} (slot)` : sp.min ? `At least ${sp.min}"${fl}` : '—';
-  const bag = sp.cr ? '0 (release)' : sp.bag ? `${sp.bag} per person per day` : sp.unreg ? '2 fish or 100 lb' : '—';
+  const size = sp.cr ? 'None. Release every tarpon.' : sp.min && sp.max ? `${sp.min}–${sp.max}"${fl} (slot)` : sp.min ? `At least ${sp.min}"${fl}` : sp.sizeText || '—';
+  const bag = sp.cr ? '0 (release)' : sp.bag ? `${sp.bag} per person per day` : sp.unreg ? '2 fish or 100 lb' : sp.bagText || '—';
   const marks = g.marks || [];
   // First photo keeps its real shape so the numbered pins land on the right spot.
   const slide = (p, i) => `<figure class="sp-slide"><a href="${p.src}" target="_blank" rel="noopener" class="sp-pic" style="aspect-ratio:${p.w} / ${p.h};width:min(100%, ${Math.round(340 * p.w / p.h)}px)">

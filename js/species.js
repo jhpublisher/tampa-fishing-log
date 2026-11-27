@@ -38,8 +38,8 @@ export const SPECIES = [
     note: 'No species limits. Default: 2 fish or 100 lb per person per day, whichever is more.' },
   { id: 'ladyfish', name: 'Ladyfish', open: null, unreg: true,
     note: 'No species limits. Default: 2 fish or 100 lb per person per day, whichever is more.' },
-  { id: 'blacktip', name: 'Blacktip shark', open: null,
-    note: '1 shark per person, 2 per boat. From shore you need the free shore-based shark permit. Check FWC size groups.' },
+  { id: 'blacktip', name: 'Blacktip shark', open: null, sizeText: 'No minimum (FWC shark Group 1)', bagText: '1 per person, 2 per boat',
+    note: 'From shore you need the free shore-based shark permit. Spinner sharks look alike but need 54" fork length, so be sure before you keep one.' },
   { id: 'other', name: 'Other', open: null },
 ];
 
@@ -76,7 +76,12 @@ export function checkKeep(sp, lengthIn, date) {
   if (!isOpen(sp, date)) return { level: 'bad', msg: `${sp.name} is closed on this date.` };
   if (lengthIn) {
     if (sp.min && lengthIn < sp.min) return { level: 'bad', msg: `Under ${sp.min}" minimum.` };
-    if (sp.max && lengthIn > sp.max) return { level: 'warn', msg: `Over ${sp.max}" slot.${sp.id === 'trout' ? ' One over-slot trout allowed per boat.' : ''}` };
+    if (sp.max && lengthIn > sp.max) {
+      // Only trout and black drum allow one over-slot fish; keeping any other over-slot fish is illegal.
+      if (sp.id === 'trout') return { level: 'warn', msg: `Over ${sp.max}" slot. Only one over-slot trout allowed per boat (per person from shore).` };
+      if (sp.id === 'blackdrum') return { level: 'warn', msg: `Over ${sp.max}" slot. Only one over-slot black drum allowed.` };
+      return { level: 'bad', msg: `Over ${sp.max}" slot. Must be released.` };
+    }
   }
   return { level: 'ok', msg: 'Looks legal. Double-check FWC.' };
 }

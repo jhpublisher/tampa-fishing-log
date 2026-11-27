@@ -88,7 +88,7 @@ $('#plan-what').onsubmit = async e => {
   out.innerHTML = `
     <div class="chips">
       <span class="chip">🌡 ${Math.round(wt.temp)}°F water <span class="muted">(${esc(wt.source)})</span></span>
-      ${w ? `<span class="chip">💨 ${w.mph} mph ${esc(w.dir)}</span>` : '<span class="chip muted">Wind: no forecast this far out</span>'}
+      ${w ? `<span class="chip">💨 ${w.mph} mph ${esc(w.dir)}</span>` : `<span class="chip muted">Wind: ${wind.length ? 'no forecast this far out' : 'forecast unavailable'}</span>`}
       ${ctx.flow ? `<span class="chip">${ctx.flow.dir === 'rising' ? '↑' : '↓'} Tide ${ctx.flow.dir}</span>` : '<span class="chip muted">Tide unavailable</span>'}
       <span class="chip">${ctx.moon.icon} ${esc(ctx.moon.name)}</span>
       ${redChip(ctx.redtide)}
@@ -126,15 +126,15 @@ $('#plan-where').onsubmit = async e => {
   const name = TARGETS.find(s => s.id === id).name;
   if (!best.length) return status(out, 'No good windows found.');
   out.innerHTML = `
-    <p class="small muted">Water ${live ? `${Math.round(live.temp)}°F now (NOAA)` : 'temp from typical values'}${wind.length ? ', wind from the NWS forecast' : ', no wind forecast loaded'}${sightings ? `, ${sightings.filter(x => x.species === id).length} recent iNaturalist sightings` : ''}${redtide ? ', red tide from FWC' : ''}.</p>
-    ${best[0].closed ? `<p class="small warn">${esc(name)} is closed to harvest right now. Catch and release only.</p>` : ''}
+    <p class="small muted">Water ${live ? `${Math.round(live.temp)}°F now (NOAA)` : 'temp from typical values'}${wind.length ? ', wind from the NWS forecast' : ', no wind forecast loaded'}${sightings ? (n => `, ${n} recent iNaturalist sighting${n === 1 ? '' : 's'}`)(sightings.filter(x => x.species === id).length) : ''}${redtide ? ', red tide from FWC' : ''}.</p>
+    ${best.some(r => r.closed || r.backup?.closed) ? `<p class="small warn">${esc(name)} is closed to harvest on ${best[0].closed ? 'these dates' : 'some of these dates'}. Catch and release only.</p>` : ''}
     ${best.map((r, i) => `
       <div class="pick">
-        <div class="pick-head"><span class="rank">${i + 1}</span><strong>${esc(r.spot.name)}</strong><span class="score">${r.score}</span></div>
+        <div class="pick-head"><span class="rank">${i + 1}</span><strong>${esc(r.spot.name)}</strong>${r.closed ? '<span class="status closed">Closed</span>' : ''}<span class="score">${r.score}</span></div>
         <div class="small"><strong>${fmtDay(r.start)}, ${fmtTime(r.start)}–${fmtTime(r.end)}</strong>${r.wind ? ` · ${r.wind.mph} mph ${esc(r.wind.dir)}` : ''}</div>
         ${bar(r.score)}
         <div class="small">${esc(r.why.join(' · '))}</div>
-        ${r.backup ? `<div class="small muted">Backup: ${fmtDay(r.backup.start)}, ${fmtTime(r.backup.start)}–${fmtTime(r.backup.end)} (${r.backup.score})</div>` : ''}
+        ${r.backup ? `<div class="small muted">Backup: ${fmtDay(r.backup.start)}, ${fmtTime(r.backup.start)}–${fmtTime(r.backup.end)} (${r.backup.score})${r.backup.closed ? ' · closed that day' : ''}</div>` : ''}
       </div>`).join('')}
     ${best[0].tip ? `<p class="small muted">Tip: ${esc(best[0].tip)}</p>` : ''}`;
 };
@@ -193,5 +193,8 @@ $('#recent').onsubmit = e => { e.preventDefault(); showRecent(); };
   const el = $('#reports-list');
   el.innerHTML = REPORT_LINKS.map(r => `<li><a href="${esc(r.url)}" target="_blank" rel="noopener"><strong>${esc(r.name)}</strong></a><span class="muted">${esc(r.note)}</span></li>`).join('');
   const h = await latestHubbards();
-  if (h) el.insertAdjacentHTML('afterbegin', `<li><a href="${esc(h.url)}" target="_blank" rel="noopener"><strong>${esc(h.title)}</strong></a><span class="muted">John’s Pass party boats · ${fmtDay(h.date)}</span></li>`);
+  if (!h) return;
+  const age = Math.floor((Date.now() - h.date) / DAY);
+  const stale = age > 14; // an old report goes to the bottom and says how old it is
+  el.insertAdjacentHTML(stale ? 'beforeend' : 'afterbegin', `<li><a href="${esc(h.url)}" target="_blank" rel="noopener"><strong>${esc(h.title)}</strong></a><span class="muted">John’s Pass party boats · ${fmtDay(h.date)}${stale ? ` · ${age >= 60 ? `${Math.round(age / 30)} months` : `${Math.round(age / 7)} weeks`} old` : ''}</span></li>`);
 })();

@@ -78,8 +78,11 @@ export function redTideSamples() {
 
 // Worst red tide level within `radius` km of a spot, or null if no samples near it.
 export function redTideAt(samples, lat, lng, radius = 12) {
-  const near = (samples || []).filter(s => km(lat, lng, s.lat, s.lng) <= radius);
+  let near = (samples || []).filter(s => km(lat, lng, s.lat, s.lng) <= radius);
   if (!near.length) return null;
+  // Only weigh samples from the latest week of sampling nearby, so an old bloom doesn't linger.
+  const newest = Math.max(...near.map(s => +s.date));
+  near = near.filter(s => newest - s.date <= 7 * 864e5);
   return near.reduce((a, b) => (b.level > a.level || (b.level === a.level && b.date > a.date) ? b : a));
 }
 
