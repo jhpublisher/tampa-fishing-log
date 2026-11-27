@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600&display=swap">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=31">
+  <link rel="stylesheet" href="css/style.css?v=32">
 </head>
 <body data-view="today">
   <header class="hero">
@@ -277,6 +277,11 @@
         Red drum catch by <a href="https://commons.wikimedia.org/wiki/File:Red_Drum_Fish.jpg" target="_blank" rel="noopener">Steve Hillebrand, USFWS</a>, public domain ·
         Fort De Soto bay pier by <a href="https://commons.wikimedia.org/wiki/File:Fort_Desoto_Bay_Fishing_Pier.jpg" target="_blank" rel="noopener">Myrtledawg7</a>, CC0.</p>
     </section>
+    <!-- CARDS -->
+    <section id="view-cards" class="view">
+      <div class="cc-head"><p class="eyebrow">Collect them all</p><h2>Card Collection</h2><div id="cc-count" class="cc-count"></div></div>
+      <div id="cc-body"></div>
+    </section>
   </main>
 
   <nav class="tabs">
@@ -284,9 +289,13 @@
     <button data-view="log"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12c3-4.5 9-6 14-2l4-3v10l-4-3c-5 4-11 2.5-14-2z"/><circle cx="8" cy="11.5" r=".9" fill="currentColor"/></svg>My trips</button>
     <button data-view="license"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M6 16c.6-1.6 1.7-2.4 3-2.4s2.4.8 3 2.4M14.5 10h4M14.5 13h3"/></svg>License</button>
     <button data-view="plan"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>Plan</button>
+    <button data-view="cards"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="12" height="16" rx="2" transform="rotate(-8 10 11)"/><rect x="9" y="5" width="12" height="16" rx="2"/><path d="M13 13c1.5-2 4-2 5 0-1 2-3.5 2-5 0z"/></svg>Cards</button>
     <button data-view="species"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3v9a4 4 0 1 1-8 0"/><path d="M6 12l-2-2"/><circle cx="14" cy="3" r="1"/></svg>Species</button>
   </nav>
 
+  <dialog id="cc-sheet" class="cc-sheet" aria-label="Fish card">
+    <div class="cc-big"><div class="cc-flip"><div class="cc-face front"></div><div class="cc-face back"></div></div></div>
+  </dialog>
   <dialog id="spot-sheet" class="sheet" aria-labelledby="sheet-title">
     <div class="sheet-head"><h2 id="sheet-title">Pick a spot</h2><button type="button" id="sheet-close" class="link-btn" aria-label="Close">Done</button></div>
     <input type="search" id="sheet-q" placeholder="Search spots, stations or any place" autocomplete="off" aria-label="Search spots">
@@ -354,7 +363,7 @@
   <script src="vendor/leaflet/leaflet.js"></script>
   <script src="vendor/suncalc/suncalc.js"></script>
   <script src="vendor/supabase/supabase.js"></script>
-  <script type="module" src="js/app.js?v=31"></script>
-  <script type="module" src="js/plan.js?v=31"></script>
+  <script type="module" src="js/app.js?v=32"></script>
+  <script type="module" src="js/plan.js?v=32"></script>
 </body>
 </html>

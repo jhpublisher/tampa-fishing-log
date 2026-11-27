@@ -14,6 +14,7 @@ import { initImport, onOpen as importOpened } from './importer.js';
 import { syncSpotNotes } from './spotnotes.js';
 import * as outbox from './outbox.js';
 import { TIPS, SAFETY } from './tips.js';
+import * as cards from './collection.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -31,6 +32,7 @@ function show(view) {
   const spb = document.getElementById('sp-back'); if (spb) spb.hidden = true;
   window.scrollTo(0, 0);
   if (view === 'log' && store.currentUser()) renderTrips();
+  if (view === 'cards') cards.open();
   if (view === 'import') { if (!store.currentUser()) return show('log'); importOpened(); }
 }
 initImport({ done: () => {} });
@@ -447,6 +449,7 @@ $('#species-guide').addEventListener('click', e => {
   jumpTo(flip.b); setBack();
 });
 $('#sp-back .sp-back-go').onclick = () => { [flip.a, flip.b] = [flip.b, flip.a]; jumpTo(flip.b); setBack(); };
+cards.init({ goGuide: id => { show('species'); setTimeout(() => jumpTo(id), 50); } });
 $('#sp-back .sp-back-x').onclick = () => { $('#sp-back').hidden = true; };
 
 
