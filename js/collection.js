@@ -46,7 +46,7 @@ export function grade(len, size) {
   const g = len <= t ? 1 + 4 * Math.max(0, (len - 0.4 * t) / (0.6 * t)) : 5 + 5 * (len - t) / (x - t);
   return Math.max(1, Math.min(10, Math.round(g)));
 }
-const sizeOf = c => SIZE[c.key] || GROUP_SIZE[c.group] || [16, 30];
+const sizeOf = c => SIZE[c.key] || GROUP_SIZE[c.fg] || [16, 30];
 // A catch with no measured length still grades: Claude's photo estimate if there is one,
 // else the fish's typical length. Shown with "est." so it's clear it wasn't measured.
 export function typicalLen(c) {
@@ -78,16 +78,26 @@ function silhouette(shape = [26]) {
 }
 
 // The full list of cards, in a stable order: the guide fish first, then the rest by group.
-const ALL = [
-  ...SPECIES.filter(s => s.id !== 'other').map(s => ({
-    key: s.id, name: s.name.replace(/ \(.*\)$/, ''), group: 'Tampa Bay favorites', guide: s.id,
-    tier: GUIDE_TIER[s.id] ?? 1, shape: SHAPE[s.id], ref: GUIDE[s.id]?.photos?.[0]?.src,
-  })),
-  ...FISH.map(f => ({
-    key: f.id, name: f.name, group: f.group, tier: TIER_OVERRIDE[f.id] ?? GROUP_TIER[f.group] ?? 1,
-    shape: GROUP_SHAPE[f.group],
-  })),
+// The deck: game fish you can catch around Tampa Bay from shore, piers, bridges or wading.
+// No bait or forage fish and no boat-only offshore fish. Anything else logged lands in "Other catches".
+const DECK = [
+  ['Inshore classics', ['snook', 'redfish', 'trout', 'flounder', 'sheepshead', 'mangrove', 'blackdrum', 'pompano', 'ladyfish', 'jack', 'tarpon',
+    'sand-seatrout', 'southern-kingfish', 'gulf-kingfish', 'permit']],
+  ['Pier & bridge', ['spanish', 'cobia', 'gag', 'tripletail', 'blue-runner', 'bluefish', 'barracuda', 'lane-snapper', 'mutton-snapper', 'goliath-grouper']],
+  ['Sharks', ['blacktip', 'bonnethead', 'atlantic-sharpnose', 'nurse-shark', 'spinner-shark', 'bull-shark', 'lemon-shark', 'great-hammerhead']],
 ];
+Object.assign(TIER_OVERRIDE, { 'sand-seatrout': 0, 'southern-kingfish': 0, 'gulf-kingfish': 0, 'blue-runner': 0, bluefish: 1, barracuda: 2,
+  'lane-snapper': 1, 'mutton-snapper': 2, bonnethead: 1, 'atlantic-sharpnose': 1, 'nurse-shark': 1, 'spinner-shark': 2, 'bull-shark': 2, 'lemon-shark': 2, 'great-hammerhead': 3 });
+Object.assign(SIZE, { 'sand-seatrout': [12, 18], 'southern-kingfish': [12, 18], 'gulf-kingfish': [12, 18], 'blue-runner': [12, 20], bluefish: [16, 30],
+  barracuda: [30, 50], 'lane-snapper': [10, 16], 'mutton-snapper': [18, 30], bonnethead: [30, 48], 'atlantic-sharpnose': [28, 40], 'nurse-shark': [72, 110],
+  'spinner-shark': [60, 90], 'bull-shark': [72, 110], 'lemon-shark': [72, 110], 'great-hammerhead': [96, 150] });
+function makeCard(key, group) {
+  const sp = SPECIES.find(s => s.id === key);
+  if (sp) return { key, name: sp.name.replace(/ \(.*\)$/, ''), group, fg: group, guide: key, tier: GUIDE_TIER[key] ?? 1, shape: SHAPE[key], ref: GUIDE[key]?.photos?.[0]?.src };
+  const f = fishById(key);
+  return f ? { key, name: f.name, group, fg: f.group, tier: TIER_OVERRIDE[key] ?? GROUP_TIER[f.group] ?? 1, shape: GROUP_SHAPE[f.group] } : null;
+}
+const ALL = DECK.flatMap(([g, keys]) => keys.map(k => makeCard(k, g)).filter(Boolean));
 ALL.forEach((c, i) => { c.no = i + 1; });
 
 // Which card a logged catch belongs to.
@@ -127,12 +137,13 @@ function badges(stats, trips) {
   const n = caught.length;
   const has = k => stats.has(k);
   const groupOf = k => ALL.find(c => c.key === k)?.group;
+  const fgOf = k => fishById(k)?.group;
   const sameDaySlam = trips.some(t => SLAM.every(k => (t.catches || []).some(c => c.species === k)));
   const night = trips.some(t => (t.catches || []).some(c => { const tm = c.time || t.start || ''; const h = +tm.slice(0, 2); return tm && (h >= 21 || h < 4); }));
   const total = [...stats.values()].reduce((a, s) => a + s.count, 0);
   const big = [...stats.values()].some(s => s.real >= 30);
-  const reef = caught.filter(k => ['Groupers & sea basses', 'Snappers', 'Reef & deep water', 'Porgies & grunts', 'Triggerfish & filefish'].includes(groupOf(k)) || ['redgrouper', 'gag', 'hogfish', 'mangrove'].includes(k)).length;
-  const sharks = caught.some(k => groupOf(k) === 'Sharks' || k === 'blacktip');
+  const pier = caught.filter(k => groupOf(k) === 'Pier & bridge').length;
+  const sharks = caught.some(k => groupOf(k) === 'Sharks' || fgOf(k) === 'Sharks');
   const trophy = caught.some(k => ALL.find(c => c.key === k)?.tier === 3);
   return [
     { i: '🎣', name: 'First Card', how: 'Log your first fish', got: n >= 1 },
@@ -141,12 +152,12 @@ function badges(stats, trips) {
     { i: '🌙', name: 'Night Owl', how: 'Catch a fish after 9 PM', got: night },
     { i: '📏', name: 'Big One', how: 'Any fish 30 inches or longer', got: big },
     { i: '🦈', name: 'Shark Week', how: 'Catch any shark', got: sharks },
-    { i: '⚓', name: 'Reef Raider', how: '5 different reef fish', got: reef >= 5 },
+    { i: '⚓', name: 'Pier Rat', how: '5 different pier & bridge fish', got: pier >= 5 },
     { i: '💯', name: 'Century', how: '100 fish logged', got: total >= 100 },
     { i: '👑', name: 'Silver King', how: 'Land a tarpon', got: has('tarpon') },
     { i: '🏆', name: 'Trophy Hunter', how: 'Collect any Trophy card', got: trophy },
-    { i: '🃏', name: 'Half Deck', how: 'Collect 25 different fish', got: n >= 25 },
-    { i: '🌊', name: 'Bay Master', how: 'Collect every Tampa Bay favorite', got: ALL.filter(c => c.guide).every(c => has(c.key)) },
+    { i: '🃏', name: 'Half Deck', how: `Collect ${Math.ceil(ALL.length / 2)} cards in the deck`, got: ALL.filter(c => has(c.key)).length >= ALL.length / 2 },
+    { i: '🌊', name: 'Bay Master', how: 'Collect every Inshore classic', got: ALL.filter(c => c.group === 'Inshore classics').every(c => has(c.key)) },
   ].sort((a, b) => b.got - a.got);
 }
 
@@ -180,7 +191,7 @@ function tile(c) {
 function render() {
   const host = $('#cc-body'); if (!host) return;
   const { stats } = state;
-  const cards = state.cards;
+  const cards = state.cards.filter(c => !c.extra), extras = state.cards.filter(c => c.extra);
   const caught = cards.filter(c => stats.has(c.key));
   $('#cc-count').innerHTML = `<b>${caught.length}</b> / ${cards.length} cards`;
   // newest card: the fish whose first catch is the most recent
@@ -212,6 +223,10 @@ function render() {
       <div class="cc-grid">${show.filter(c => c.group === g).map(tile).join('')}</div>`;
   });
   html += (state.tier != null ? `<div class="cc-grid">${show.map(tile).join('')}</div>` : groupHtml.join('')) || '<p class="muted small">Nothing here yet.</p>';
+  // fish you've logged that aren't in the deck still show, so nothing is lost
+  if (extras.length && state.tier == null && state.filter !== 'not')
+    html += `<div class="cc-sec"><span>Other catches</span><span>${extras.length}</span></div><p class="cc-note">Not part of the deck, kept here so nothing you log goes missing.</p>
+      <div class="cc-grid">${extras.map(tile).join('')}</div>`;
   host.innerHTML = html;
   host._badges = bs;
 }
@@ -356,7 +371,8 @@ export async function open() {
   state.stats = tally(trips);
   // catches named something not in the list still get a card
   const extra = [...state.stats.keys()].filter(k => !ALL.some(c => c.key === k)).map((k, i) => ({
-    key: k, name: state.stats.get(k).name || fishById(k)?.name || k.replace(/^name:/, ''), group: 'My other fish', tier: 1, no: ALL.length + i + 1,
+    key: k, name: fishById(k)?.name || byId(k)?.name?.replace(/ \(.*\)$/, '') || state.stats.get(k).name || k.replace(/^name:/, ''), group: 'Other catches', extra: true,
+    fg: fishById(k)?.group, tier: TIER_OVERRIDE[k] ?? GUIDE_TIER[k] ?? GROUP_TIER[fishById(k)?.group] ?? 1, shape: SHAPE[k] || GROUP_SHAPE[fishById(k)?.group], ref: GUIDE[k]?.photos?.[0]?.src, no: ALL.length + i + 1,
   }));
   state.cards = [...ALL, ...extra];
   state.loaded = true;
