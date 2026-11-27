@@ -482,6 +482,39 @@ function dropPin(lat, lng, presetName) {
   };
 }
 
+// ---------- drop a pin to explore (Plan) ----------
+// Tap anywhere: lists the closest spots and lets Plan score that exact point.
+let probe = null, probeMarker = null; // {onSpot, onTarget} while active
+const miles = k => { const m = k / 1.609; return m < 0.5 ? '<0.5 mi' : m < 10 ? m.toFixed(1) + ' mi' : Math.round(m) + ' mi'; };
+function probeAt(lat, lng) {
+  if (probeMarker) probeMarker.setLatLng([lat, lng]);
+  else probeMarker = L.marker([lat, lng], { draggable: true }).addTo(smap).on('dragend', e => { const ll = e.target.getLatLng(); probeAt(ll.lat, ll.lng); });
+  const near = SPOTS.map(s => ({ s, d: km(lat, lng, s.lat, s.lng) })).sort((a, b) => a.d - b.d).slice(0, 6);
+  const st = nearestStation(lat, lng);
+  $('#map-info').innerHTML = `<p class="small"><strong>Pin dropped.</strong> Tides from NOAA ${esc(st.name)}. Drag the pin to adjust.</p>
+    <div class="row map-btns"><button type="button" class="primary" id="probe-target">What to target here</button><button type="button" id="probe-save">Save as my spot</button></div>
+    <h3>Spots near the pin</h3>
+    <ul class="pick-list">${near.map(({ s, d }, i) => `<li><button type="button" class="pick-row" data-n="${i}">${esc(s.name)} <span class="muted small">${miles(d)}${s.custom ? ' · mine' : s.boat ? ' · boat' : ''}</span></button></li>`).join('')}</ul>`;
+  $$('[data-n]', $('#map-info')).forEach(b => b.onclick = () => { const s = near[+b.dataset.n].s; const cb = probe; endProbe(); $('#map-sheet').close(); cb?.onSpot(s.id); });
+  $('#probe-target').onclick = () => {
+    const n = near.find(x => !x.s.custom && !x.s.osm) || near[0];
+    const spot = { id: '__pin', name: `Dropped pin (near ${n.s.name.split(/ [&(,]/)[0]})`, lat, lng, tags: n.d < 6 ? n.s.tags : ['flats', 'mangroves'], pin: true };
+    const cb = probe; endProbe(); $('#map-sheet').close(); cb?.onTarget(spot);
+  };
+  $('#probe-save').onclick = () => { endProbe(); startAdd(); dropPin(lat, lng, ''); };
+}
+function endProbe() { probe = null; probeMarker?.remove(); probeMarker = null; $('#map-title').textContent = 'Spots map'; }
+export function dropProbe({ onSpot, onTarget, near }) {
+  const p = near || activePlace();
+  openMap(p.key || active);
+  probe = { onSpot, onTarget };
+  $('#map-title').textContent = 'Drop a pin';
+  setTimeout(() => {
+    $('#map-info').innerHTML = '<p class="small"><strong>Tap the map</strong> anywhere to see the closest spots and what to target there.</p>';
+    if (p.lat != null) smap.setView([p.lat, p.lng], 11);
+  }, 70);
+}
+
 // Open the map with a pin already dropped (from a place search), ready to name and save.
 export function addSpotAt(lat, lng, name = '') {
   openMap(active);
@@ -498,9 +531,10 @@ export function openMap(key = active) {
     smap = L.map('spot-map', { preferCanvas: true }).setView([p.lat, p.lng], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(smap);
     slayer = L.layerGroup().addTo(smap);
-    smap.on('click', e => { if (adding) dropPin(e.latlng.lat, e.latlng.lng); });
+    smap.on('click', e => { if (adding) dropPin(e.latlng.lat, e.latlng.lng); else if (probe) probeAt(e.latlng.lat, e.latlng.lng); });
   }
   if (adding) endAdd();
+  if (probe) endProbe();
   setTimeout(() => { smap.invalidateSize(); smap.setView([p.lat, p.lng], 12); }, 60);
   drawPins(p.key); mapInfo(p.key);
 }
@@ -516,7 +550,7 @@ $('#here-btn').onclick = openSheet;
 $('#here-map').onclick = () => openMap(active);
 $('#sheet-map').onclick = () => openMap(active);
 $('#map-close').onclick = () => $('#map-sheet').close();
-$('#map-sheet').addEventListener('close', () => { if (adding) endAdd(); });
+$('#map-sheet').addEventListener('close', () => { if (adding) endAdd(); if (probe) endProbe(); });
 $('#map-sheet').addEventListener('click', e => { if (e.target.id === 'map-sheet') e.target.close(); });
 $('#spot-add').onclick = openSheet;
 $('#sheet-close').onclick = () => $('#spot-sheet').close();

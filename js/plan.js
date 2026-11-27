@@ -2,7 +2,7 @@
 import { getHiLo, nearestStation, loadStations } from './tides.js';
 import { SPOTS, spotById, nearestSpot, CATS, catOf, accessOf } from './spots.js';
 import { spotCombo, saveLoc, refPoint } from './placesearch.js';
-import { addSpotAt, place, activePlace } from './home.js';
+import { addSpotAt, place, activePlace, dropProbe } from './home.js';
 import { estimateWaterTemp, latestWaterTemp, typicalTemp, windForecast, windAt, windCells, windCellAt, spotWind, windLimit, setWindLimit } from './conditions.js';
 import { TARGETS, makeContext, rankSpecies, findWindows, catchHistory } from './recommend.js';
 import * as store from './store.js';
@@ -36,6 +36,7 @@ document.addEventListener('wind-limit', fillWind);
 
 // ---------- form setup ----------
 const spotSel = $('#plan-spot'), spSel = $('#plan-species');
+let pinSpot = null; // a dropped pin being scored (value '__pin')
 const fillSpots = () => {
   const keep = spotSel.value;
   // grouped by kind of spot, A to Z inside each group
@@ -43,7 +44,8 @@ const fillSpots = () => {
     const list = SPOTS.filter(s => catOf(s) === c).sort((a, b) => a.name.localeCompare(b.name));
     return list.length ? `<optgroup label="${esc(title)}">${list.map(s => `<option value="${s.id}">${esc(s.name)}${s.boat && c !== 'ramp' && c !== 'offshore' ? ' (boat)' : ''}</option>`).join('')}</optgroup>` : '';
   }).join('');
-  if (SPOTS.some(s => s.id === keep)) spotSel.value = keep;
+  if (pinSpot) spotSel.insertAdjacentHTML('beforeend', `<option value="__pin">${esc(pinSpot.name)}</option>`);
+  if (SPOTS.some(s => s.id === keep) || (keep === '__pin' && pinSpot)) spotSel.value = keep;
 };
 fillSpots();
 document.addEventListener('spots-changed', fillSpots);
@@ -68,6 +70,17 @@ const now0 = new Date();
 $('#plan-date').value = `${now0.getFullYear()}-${pad(now0.getMonth() + 1)}-${pad(now0.getDate())}`;
 $('#plan-time').value = `${pad(Math.min(23, now0.getHours() + 1))}:00`;
 
+// Drop a pin: pick a spot near it, or score the pin itself.
+$('#plan-pin').onclick = () => dropProbe({
+  near: spotById(spotSel.value) || null,
+  onSpot: id => { spotSel.value = id; combo.set(spotById(id)?.name); },
+  onTarget: spot => {
+    pinSpot = spot;
+    fillSpots(); spotSel.value = '__pin'; combo.set(spot.name);
+    $('#plan-what').requestSubmit();
+  },
+});
+
 $('#plan-near').onclick = () => {
   if (!navigator.geolocation) return;
   $('#plan-near').textContent = 'Finding you…';
@@ -83,7 +96,7 @@ $('#plan-near').onclick = () => {
 $('#plan-what').onsubmit = async e => {
   e.preventDefault();
   const out = $('#plan-what-out');
-  const spot = spotById(spotSel.value);
+  const spot = spotSel.value === '__pin' ? pinSpot : spotById(spotSel.value);
   if (!spot) { status(out, 'Pick a spot first: tap the Spot box or type a place.'); $('#plan-q').focus(); return; }
   const t = new Date(`${$('#plan-date').value}T${$('#plan-time').value || '07:00'}`);
   if (isNaN(t)) return status(out, 'Pick a date and time.');
