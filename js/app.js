@@ -10,6 +10,7 @@ import { pastWaterTemp } from './conditions.js';
 import { conditionsAt } from './catchcond.js';
 import { voiceWidget } from './voice.js';
 import * as outbox from './outbox.js';
+import { TIPS, SAFETY } from './tips.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -375,7 +376,7 @@ function statusChip(sp) {
 function speciesCard(sp) {
   const g = GUIDE[sp.id] || { id: [], photos: [], marks: [] };
   const fl = sp.fl ? ' fork length' : ' total length';
-  const size = sp.cr ? 'None. Release every tarpon.' : sp.min && sp.max ? `${sp.min}–${sp.max}"${fl} (slot)` : sp.min ? `At least ${sp.min}"${fl}` : sp.sizeText || '—';
+  const size = sp.cr ? 'None. Release every tarpon.' : sp.min && sp.max ? `${sp.min}–${sp.max}"${fl} (slot: keep only fish in this range)` : sp.min ? `At least ${sp.min}"${fl}` : sp.sizeText || '—';
   const bag = sp.cr ? '0 (release)' : sp.bag ? `${sp.bag} per person per day` : sp.unreg ? '2 fish or 100 lb' : sp.bagText || '—';
   const marks = g.marks || [];
   // First photo keeps its real shape so the numbered pins land on the right spot.
@@ -404,6 +405,8 @@ function speciesCard(sp) {
       ${marks.length ? `<ol class="sp-marks">${marks.map(m => `<li>${esc(m[2])}</li>`).join('')}</ol>` : ''}
       ${g.id.length ? `<ul class="sp-id">${g.id.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}` : ''}
     ${lookHtml}
+    ${TIPS[sp.id] ? `<h4>How to catch it</h4><p class="small sp-tip">${esc(TIPS[sp.id].bait)}</p>
+      <h4>Let it go well</h4><p class="small sp-tip">${esc(TIPS[sp.id].release)}</p>` : ''}
     <div class="sp-foot">
       ${g.fwc ? `<a href="${g.fwc}" target="_blank" rel="noopener">FWC rules ↗</a>` : ''}
       ${g.photos.length ? `<span class="photo-credit">Photo${g.photos.length > 1 ? 's' : ''}: ${g.photos.map(p => `<a href="${p.page}" target="_blank" rel="noopener">${esc(p.by)}</a> (${esc(p.lic)})`).join(', ')}, via iNaturalist</span>` : ''}
@@ -411,7 +414,9 @@ function speciesCard(sp) {
   </article>`;
 }
 $('#rules-date').textContent = new Date(RULES_AS_OF + 'T12:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-$('#species-guide').innerHTML = SPECIES.filter(s => s.id !== 'other').map(speciesCard).join('');
+$('#species-guide').innerHTML = `<details class="card safety"><summary><h2>Safety, measuring and release tips</h2></summary>
+    <dl>${SAFETY.map(([h, t]) => `<div><dt>${esc(h)}</dt><dd>${esc(t)}</dd></div>`).join('')}</dl></details>`
+  + SPECIES.filter(s => s.id !== 'other').map(speciesCard).join('');
 $('#species-search').oninput = e => {
   const q = e.target.value.trim().toLowerCase();
   $$('.sp-card').forEach(c => { c.hidden = !!q && !c.dataset.q.includes(q); });
@@ -468,6 +473,12 @@ store.watchAuth(u => {
   }
   else if ($('#view-trip').classList.contains('active')) show('log');
 });
+
+// ---------- bigger text (kept on this phone) ----------
+const bigText = () => ls.get('bigText') === '1';
+const applyBig = () => { document.documentElement.classList.toggle('big', bigText()); $('#text-size').setAttribute('aria-pressed', String(bigText())); };
+$('#text-size').onclick = () => { ls.set('bigText', bigText() ? '0' : '1'); applyBig(); home.toast(bigText() ? 'Bigger text on' : 'Normal text size'); };
+applyBig();
 
 // ---------- trips saved without signal ----------
 async function uploadWaiting() {

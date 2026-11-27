@@ -403,3 +403,21 @@ details { margin-top: 8px; } summary { cursor: pointer; color: var(--flats); fon
 .remove-catch { min-width: 44px; padding: 6px 12px; color: var(--bad); }
 .trip .pending { color: var(--warn); font-weight: 600; }
 .quick-catch { width: 100%; min-height: 52px; font-size: 1.05rem; margin: 0 0 14px; }
+
+/* ---------- help for newer anglers ---------- */
+a.btn.primary { background: var(--coral); color: #fff; border-color: var(--coral); }
+.lic-help > summary, .gloss > summary, .safety > summary { cursor: pointer; list-style: none; min-height: 44px; display: flex; align-items: center; justify-content: space-between; }
+.lic-help > summary::after, .gloss > summary::after, .safety > summary::after { content: '▾'; color: var(--muted); }
+.lic-help[open] > summary::after, .gloss[open] > summary::after, .safety[open] > summary::after { content: '▴'; }
+.lic-help > summary h2, .gloss > summary h2, .safety > summary h2 { margin: 0; }
+.lic-rules, .safety dl { margin: 8px 0 12px; }
+.lic-rules > div, .safety dl > div { padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.lic-rules dt, .safety dt { font-weight: 700; }
+.lic-rules dd, .safety dd { margin: 2px 0 0; }
+.lic-help .row { flex-wrap: wrap; gap: 8px; }
+.sp-tip { margin: 0 16px 6px; }
+.text-size { position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); right: 12px; z-index: 3; min-width: 44px; min-height: 44px; border-radius: 999px; background: rgba(0,0,0,.45); color: #fff; border: 1px solid rgba(255,255,255,.4); font: 700 .9rem var(--label); }
+.text-size span { font-size: 1.25em; }
+.text-size[aria-pressed="true"] { background: var(--coral); border-color: var(--coral); }
+html.big { font-size: 118%; }
+html.big body { font-size: 20px; }
