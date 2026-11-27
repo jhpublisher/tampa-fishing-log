@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600&display=swap">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=24">
+  <link rel="stylesheet" href="css/style.css?v=25">
 </head>
 <body data-view="today">
   <header class="hero">
@@ -56,6 +56,11 @@
         <div class="card-head"><h2>Tide today</h2><span class="muted small" id="tide-where"></span></div>
         <div id="tide-chart" class="chart"></div>
         <details class="tide-more"><summary class="small">Tide &amp; feeding times</summary><ul id="tide-list" class="plain small"></ul></details>
+      </div>
+
+      <div class="card" id="spot-info-card" hidden>
+        <div class="card-head"><h2 id="spot-info-title">About this spot</h2><span class="muted small">how to fish it</span></div>
+        <div id="spot-info"></div>
       </div>
 
       <div class="card">
@@ -200,6 +205,13 @@
           </select></label>
           <label>My wind limit <select id="plan-wind"></select></label>
         </div>
+        <label>Fishing from <select id="plan-access">
+          <option value="">Anywhere</option>
+          <option value="shore">🚶 Shore, pier or bridge</option>
+          <option value="wade">🩳 Wading</option>
+          <option value="kayak">🛶 Kayak</option>
+          <option value="boat">🚤 Boat</option>
+        </select></label>
         <div class="row end"><button type="submit" class="primary">Find spots</button></div>
         <div id="plan-where-out"></div>
       </form>
@@ -316,7 +328,7 @@
   <script src="vendor/leaflet/leaflet.js"></script>
   <script src="vendor/suncalc/suncalc.js"></script>
   <script src="vendor/supabase/supabase.js"></script>
-  <script type="module" src="js/app.js?v=24"></script>
-  <script type="module" src="js/plan.js?v=24"></script>
+  <script type="module" src="js/app.js?v=25"></script>
+  <script type="module" src="js/plan.js?v=25"></script>
 </body>
 </html>
