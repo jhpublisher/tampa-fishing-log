@@ -195,16 +195,71 @@ function render() {
 }
 
 // ---------- the big flipped card ----------
-function sparkle(el, n = 18) {
+// How much a card sparkles: 0 (uncaught) to about 1 (trophy, grade 10).
+const shine = (c, s) => s ? Math.min(1, (c.tier / 3) * .55 + ((gradeOf(c, s) || 3) / 10) * .45) : 0;
+const SPARK_COLORS = ['#f6d29a', '#4fbfb6', '#f0936a', '#fff', '#c9a6ff', '#9fe8ff'];
+function sparkle(el, n = 18, power = .3) {
   const box = el.getBoundingClientRect();
   for (let i = 0; i < n; i++) {
-    const p = document.createElement('span'); p.className = 'cc-spark'; p.textContent = ['✦', '✧', '★', '•'][i % 4];
-    const a = Math.random() * Math.PI * 2, d = 90 + Math.random() * 120;
+    const p = document.createElement('span'); p.className = 'cc-spark'; p.textContent = ['✦', '✧', '★', '•', '✶'][i % 5];
+    const a = Math.random() * Math.PI * 2, d = 80 + Math.random() * (120 + power * 160);
     p.style.left = box.left + box.width / 2 + 'px'; p.style.top = box.top + box.height / 2 + 'px';
     p.style.setProperty('--dx', Math.cos(a) * d + 'px'); p.style.setProperty('--dy', Math.sin(a) * d + 'px');
-    p.style.color = ['#f6d29a', '#4fbfb6', '#f0936a', '#fff'][i % 4];
-    document.body.appendChild(p); setTimeout(() => p.remove(), 900);
+    p.style.fontSize = 10 + Math.random() * (12 + power * 18) + 'px';
+    p.style.color = SPARK_COLORS[i % (power > .6 ? 6 : 4)];
+    p.style.animationDuration = 700 + Math.random() * 600 + 'ms';
+    document.body.appendChild(p); setTimeout(() => p.remove(), 1400);
   }
+}
+// Glitter that keeps twinkling over the open card; more for rarer, higher-graded fish.
+let glitterTimer = null;
+function glitter(power) {
+  clearInterval(glitterTimer);
+  const host = $('#cc-sheet .cc-glitter'); host.innerHTML = '';
+  if (!power) return;
+  const every = Math.round(260 - power * 220); // ~40ms at the top, ~200ms for a low common
+  glitterTimer = setInterval(() => {
+    if (!$('#cc-sheet').open) { clearInterval(glitterTimer); return; }
+    const g = document.createElement('i');
+    g.style.left = Math.random() * 100 + '%'; g.style.top = Math.random() * 100 + '%';
+    const z = 4 + Math.random() * (5 + power * 9); g.style.width = g.style.height = z + 'px';
+    g.style.background = SPARK_COLORS[Math.floor(Math.random() * (power > .6 ? 6 : 4))];
+    host.appendChild(g); setTimeout(() => g.remove(), 1100);
+  }, every);
+}
+
+// ---------- spin: the card's angle, driven by finger drags with momentum ----------
+const spin = { a: 0, v: 0, raf: 0, drag: null, power: 0 };
+function setAngle(a) {
+  spin.a = a; const el = $('#cc-sheet .cc-big'); if (el) el.style.setProperty('--spin', a + 'deg');
+}
+function stopSpin() { cancelAnimationFrame(spin.raf); spin.raf = 0; }
+// ease to an angle
+function tweenTo(target, ms = 700, done) {
+  stopSpin(); const from = spin.a, t0 = performance.now();
+  const step = now => {
+    const k = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - k, 3);
+    setAngle(from + (target - from) * e);
+    if (k < 1) spin.raf = requestAnimationFrame(step); else { spin.raf = 0; done?.(); }
+  };
+  spin.raf = requestAnimationFrame(step);
+}
+// let it coast after a flick, then settle on the nearest face
+function coast() {
+  stopSpin(); let last = performance.now(), crossed = Math.floor(spin.a / 180);
+  const step = now => {
+    const dt = Math.min(40, now - last); last = now;
+    setAngle(spin.a + spin.v * dt); spin.v *= Math.pow(.993, dt);
+    const f = Math.floor(spin.a / 180);
+    if (f !== crossed) { crossed = f; if (spin.power) burst(.4); } // a little burst each time a face goes by
+    if (Math.abs(spin.v) > .06) spin.raf = requestAnimationFrame(step);
+    else tweenTo(Math.round(spin.a / 180) * 180, 450);
+  };
+  spin.raf = requestAnimationFrame(step);
+}
+function burst(scale = 1) {
+  const card = $('#cc-sheet .cc-big'); if (!card || !spin.power) return;
+  sparkle(card, Math.round((8 + spin.power * 46) * scale), spin.power);
 }
 
 function openCard(key, from) {
@@ -228,24 +283,30 @@ function openCard(key, from) {
   dlg.querySelector('.cc-big').className = `cc-big t${c.tier}${s ? '' : ' x'}`;
   dlg.querySelector('.cc-face.back').innerHTML = back + `<div class="cc-acts">${c.guide ? `<button type="button" data-guide="${esc(c.guide)}">Species guide</button>` : ''}<button type="button" class="cc-close">Close</button></div>`;
   dlg.querySelector('.cc-face.front').innerHTML = `<span class="cc-im">${s ? cardImg(c, s) : silhouette(c.shape)}</span><span class="cc-nm">${s ? esc(c.name) : '? ? ?'}</span>`;
-  const card = dlg.querySelector('.cc-flip');
-  card.classList.remove('flipped', 'shake');
+  const card = dlg.querySelector('.cc-flip'), big = dlg.querySelector('.cc-big');
+  card.classList.remove('shake');
+  stopSpin(); setAngle(0); spin.v = 0; spin.power = shine(c, s);
   dlg.showModal();
-  // grow from the tapped card, then flip
+  glitter(spin.power);
+  // grow from the tapped card, then spin around and land on the back
   if (from) {
-    const a = from.getBoundingClientRect(), b = card.getBoundingClientRect();
-    card.animate([{ transform: `translate(${a.left + a.width / 2 - (b.left + b.width / 2)}px, ${a.top + a.height / 2 - (b.top + b.height / 2)}px) scale(${a.width / b.width})` }, { transform: 'none' }],
+    const fa = from.getBoundingClientRect(), fb = big.getBoundingClientRect();
+    big.animate([{ transform: `translate(${fa.left + fa.width / 2 - (fb.left + fb.width / 2)}px, ${fa.top + fa.height / 2 - (fb.top + fb.height / 2)}px) scale(${fa.width / fb.width})` }, { transform: 'none' }],
       { duration: 320, easing: 'cubic-bezier(.2,.8,.3,1.1)' });
   }
   setTimeout(() => {
-    if (!s) { card.classList.add('shake'); setTimeout(() => card.classList.add('flipped'), 420); }
-    else { card.classList.add('flipped'); setTimeout(() => sparkle(card, c.tier >= 2 ? 28 : 16), 300); }
     navigator.vibrate?.(s ? [12, 40, 12] : 30);
+    if (!s) { card.classList.add('shake'); setTimeout(() => { card.classList.remove('shake'); tweenTo(180, 700); }, 420); return; }
+    // better cards spin more: 1.5 turns, up to 2.5 for the best
+    const turns = spin.power > .7 ? 900 : spin.power > .4 ? 720 : 540;
+    tweenTo(turns, 900 + turns / 2, () => { setAngle(180); burst(1); });
+    setTimeout(() => burst(.5), 250);
   }, 330);
 }
 
 // holo tilt: rare and trophy cards follow your finger
 function tilt(e) {
+  if (spin.drag) return;
   const big = $('#cc-sheet .cc-big'); if (!big || !big.matches('.t2, .t3') || big.matches('.x')) return;
   const r = big.getBoundingClientRect();
   const x = ((e.clientX - r.left) / r.width) - .5, y = ((e.clientY - r.top) / r.height) - .5;
@@ -293,9 +354,30 @@ export function init({ goGuide }) {
   dlg.addEventListener('click', e => {
     if (e.target === dlg || e.target.closest('.cc-close')) { dlg.close(); return; }
     const g = e.target.closest('[data-guide]'); if (g) { dlg.close(); goGuide(g.dataset.guide); return; }
-    const big = e.target.closest('.cc-flip');
-    if (big && !e.target.closest('button')) big.classList.toggle('flipped');
   });
+  // drag sideways to spin the card all the way around; a tap flips it
+  const big = dlg.querySelector('.cc-big');
+  big.addEventListener('pointerdown', e => {
+    if (e.target.closest('button')) return;
+    stopSpin(); spin.drag = { x: e.clientX, a: spin.a, t: performance.now(), lx: e.clientX, moved: false };
+    spin.v = 0; big.setPointerCapture(e.pointerId);
+  });
+  big.addEventListener('pointermove', e => {
+    const d = spin.drag; if (!d) return;
+    const now = performance.now(), dx = e.clientX - d.x;
+    if (Math.abs(dx) > 6) d.moved = true;
+    const nv = (e.clientX - d.lx) * .7 / Math.max(1, now - d.t);
+    spin.v = spin.v * .6 + nv * .4; d.t = now; d.lx = e.clientX;
+    setAngle(d.a + dx * .7);
+  });
+  const up = () => {
+    const d = spin.drag; if (!d) return; spin.drag = null;
+    if (!d.moved) { tweenTo(Math.round(spin.a / 180) * 180 + 180, 600, () => burst(.6)); return; }
+    if (Math.abs(spin.v) > .3) burst(.5);
+    coast();
+  };
+  big.addEventListener('pointerup', up); big.addEventListener('pointercancel', up);
+  dlg.addEventListener('close', () => { stopSpin(); clearInterval(glitterTimer); });
   dlg.addEventListener('pointermove', tilt);
 }
 
