@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600&display=swap">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=21">
+  <link rel="stylesheet" href="css/style.css?v=22">
 </head>
 <body data-view="today">
   <header class="hero">
@@ -59,7 +59,7 @@
       <div class="card">
         <div class="card-head"><h2>This week</h2><span class="muted small">bite score by day</span></div>
         <div id="week"></div>
-        <p class="muted small">Score blends moving tide, solunar feeding times, moon phase and dawn/dusk. A rule of thumb, not a promise.</p>
+        <p class="muted small">Score blends moving tide, solunar feeding times, moon phase, dawn/dusk and wind. A rule of thumb, not a promise.</p>
       </div>
     </section>
 
@@ -154,6 +154,15 @@
         <h2>Where and when for…</h2>
         <p class="muted small">Pick a species to get the best spots and 2-hour windows for the next 7 days.</p>
         <label>Species <select id="plan-species"></select></label>
+        <div class="row">
+          <label>When <select id="plan-when">
+            <option value="5-20">Any time (5am–10pm)</option>
+            <option value="5-9">Morning (5–11am)</option>
+            <option value="9-14">Midday (9am–4pm)</option>
+            <option value="14-20">Evening (2–10pm)</option>
+          </select></label>
+          <label>My wind limit <select id="plan-wind"></select></label>
+        </div>
         <div class="row end"><button type="submit" class="primary">Find spots</button></div>
         <div id="plan-where-out"></div>
       </form>
@@ -252,7 +261,7 @@
   <script src="vendor/leaflet/leaflet.js"></script>
   <script src="vendor/suncalc/suncalc.js"></script>
   <script src="vendor/supabase/supabase.js"></script>
-  <script type="module" src="js/app.js?v=21"></script>
-  <script type="module" src="js/plan.js?v=21"></script>
+  <script type="module" src="js/app.js?v=22"></script>
+  <script type="module" src="js/plan.js?v=22"></script>
 </body>
 </html>

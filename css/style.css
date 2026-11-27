@@ -343,6 +343,7 @@ td:first-child { font-weight: 600; white-space: nowrap; padding-right: 10px; }
 .score { margin-left: auto; font: 400 1.1rem var(--display); font-variant-numeric: tabular-nums; }
 .tag { font: 600 .72rem var(--label); text-transform: uppercase; letter-spacing: .08em; border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; color: var(--muted); }
 .tag.bad { color: var(--bad); border-color: var(--bad); }
+.tag.warn { color: var(--warn); border-color: var(--warn); }
 details { margin-top: 8px; } summary { cursor: pointer; color: var(--flats); font-weight: 600; }
 #plan-what-out, #plan-where-out { margin-top: 10px; }
 

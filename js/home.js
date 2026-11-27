@@ -3,10 +3,11 @@
 import { STATIONS, loadStations, getHiLo, heightAt, flowAt, nearestStation } from './tides.js';
 import { moonInfo, solunarDay, forecast, scoreAt } from './solunar.js';
 import { SPOTS, nearestSpot, km, setMySpots, mySpots, SPOT_TYPES, loadOsmSpots } from './spots.js';
-import { latestWaterTemp, windForecast, windAt } from './conditions.js';
-import { makeContext, rankSpecies, catchHistory } from './recommend.js';
+import { latestWaterTemp, windForecast, windAt, windCells, windCellAt, windLimit } from './conditions.js';
+import { makeContext, rankSpecies, catchHistory, feltWind } from './recommend.js';
 import { recentSightings, redTideSamples, redTideAt } from './sightings.js';
 import { GUIDE } from './guide.js';
+import { closesText } from './species.js';
 import * as store from './store.js';
 import { attachSearch, osmSearch, groupedSpots, refPoint, saveLoc } from './placesearch.js';
 
@@ -16,7 +17,16 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { } } };
 const H = 3600e3;
 const DAYTIME = { from: 5, to: 20 }; // windows start 5am-8pm, so they all end by 10pm
-const WIND_WARN = 18, WIND_BAD = 22; // mph: tile turns amber / verdict says too windy
+// Wind: your own limit (set on Plan) says "too windy"; the tile turns amber a few mph below it.
+const windBad = () => windLimit(), windWarn = () => windLimit() - 4;
+// Wind at a place: hourly forecast for that spot (with gusts), else the NWS bay forecast.
+function windHere(p, t) {
+  const own = windCellAt(extras.cells, p.lat, p.lng);
+  const w = own ? windAt(own, t) : null;
+  const bay = extras.wind ? windAt(extras.wind, t) : null;
+  return w ? { ...w, sky: bay?.sky || '' } : bay;
+}
+document.addEventListener('wind-limit', () => render());
 const fmtTime = d => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(':00', '').replace(/\s?([AP])M/i, (_, x) => x.toLowerCase() === 'a' ? 'am' : 'pm');
 const isToday = d => d.toDateString() === new Date().toDateString();
 const when = d => isToday(d) ? fmtTime(d) : `${d.toLocaleDateString([], { weekday: 'short' })} ${fmtTime(d)}`;
@@ -82,7 +92,7 @@ function tidesFor(st) {
   if (!tides.has(st.id)) tides.set(st.id, getHiLo(st.id, new Date(), 8).catch(() => onPreview ? sampleHiLo(new Date()) : null));
   return tides.get(st.id);
 }
-let histP = null;
+let histP = null, cellsBusy = false;
 const extras = {}; // wind, water, red tide, sightings: shared by every spot
 function loadExtras() {
   const set = k => v => { extras[k] = v; render(); };
@@ -102,15 +112,15 @@ function verdict(p, hilo, now) {
   const wins = windows(now, p, hilo).filter(w => w.end > now);
   const cur = wins.find(w => w.start <= now);
   const next = wins.find(w => w.start > now);
-  const w = extras.wind ? windAt(extras.wind, now) : null;
+  const w = windHere(p, now), felt = feltWind(p, w);
   const rt = extras.redtide ? redTideAt(extras.redtide, p.lat, p.lng) : null;
   let head, tone, sub;
   if (rt?.level >= 3) { head = 'Red tide nearby'; tone = 'bad'; sub = `FWC found ${rt.label} levels at ${rt.place}. Try another spot.`; }
-  else if (w?.mph >= WIND_BAD) { head = 'Too windy'; tone = 'bad'; sub = `${w.mph} mph ${w.dir}. Tuck into a sheltered canal or wait it out.`; }
+  else if (felt > windBad()) { head = 'Too windy'; tone = 'bad'; sub = `${w.mph}${w.gust ? `–${w.gust}` : ''} mph ${w.dir}, over your ${windBad()} mph limit. Tuck into a sheltered canal or wait it out.`; }
   else if (cur || score >= 70) { head = 'Fish now'; tone = 'good'; sub = cur ? `Prime window until ${fmtTime(cur.end)}` : 'Conditions line up right now'; }
   else if (score >= 50) { head = 'Worth a cast'; tone = 'ok'; sub = next ? `Better at ${when(next.start)}` : 'Fair bite right now'; }
   else { head = 'Slow right now'; tone = 'slow'; sub = next ? `Next bite window ${when(next.start)}` : 'Check back later'; }
-  if (w?.mph >= WIND_WARN && w.mph < WIND_BAD && tone !== 'bad') sub += ` · Windy (${w.mph} mph ${w.dir}), so pick a sheltered spot`;
+  if (felt >= windWarn() && tone !== 'bad') sub += ` · Windy (${w.mph} mph ${w.dir}), so pick a sheltered spot`;
   return { score, head, tone, sub, next, cur, day, wind: w, rt };
 }
 
@@ -126,6 +136,12 @@ async function draw() {
   $('#hello').textContent = hr < 5 ? 'Late night, James' : hr < 12 ? 'Good morning, James' : hr < 17 ? 'Good afternoon, James' : 'Good evening, James';
   // your own catches nudge the species picks once you're signed in
   if (store.currentUser() && !histP) histP = store.listTrips().then(t => { extras.hist = catchHistory(t); render(); }).catch(() => { histP = null; });
+  // hourly wind for this spot and the spot cards (one request, cached)
+  const wantCells = [p, ...(favs.length ? favs : SUGGESTED).map(place).filter(Boolean)].map(q => [q.lat, q.lng]);
+  if (wantCells.some(([a, b]) => !windCellAt(extras.cells, a, b)) && !cellsBusy) {
+    cellsBusy = true;
+    windCells(wantCells).then(m => { cellsBusy = false; if (!m.size || ![...m.values()].some(Boolean)) return; extras.cells = new Map([...(extras.cells || []), ...m]); render(); });
+  }
   // water temp from the gauge nearest this spot (cached per station, so this settles after one pass)
   latestWaterTemp(p.lat, p.lng).then(v => { if (v !== undefined && extras.water !== v && activePlace().key === p.key) { extras.water = v; render(); } });
   const hilo = await tidesFor(p.station);
@@ -161,7 +177,7 @@ function renderTiles(p, hilo, v, now) {
   $('#tiles').innerHTML = [
     tile(!flow ? '〰' : flow.dir === 'rising' ? '⬆' : '⬇', 'Tide', h != null ? `${flow.dir === 'rising' ? 'Rising' : 'Falling'}` : '—',
       nx ? `${nx.type === 'H' ? 'High' : 'Low'} ${fmtTime(nx.t)} · ${inMin(nx.t)}` : 'No tide data'),
-    tile('💨', 'Wind', w ? `${w.mph} <small>mph ${esc(w.dir)}</small>` : extras.wind ? '—' : '…', w ? esc(w.sky) : extras.wind ? 'No forecast' : 'Loading', w?.mph >= WIND_WARN ? 'warn' : ''),
+    tile('💨', 'Wind', w ? `${w.mph} <small>mph ${esc(w.dir)}</small>` : extras.wind ? '—' : '…', w ? esc([w.gust ? `Gusts ${w.gust}` : '', w.sky].filter(Boolean).join(' · ')) : extras.wind ? 'No forecast' : 'Loading', feltWind(p, w) >= windWarn() ? 'warn' : ''),
     tile('🌡', 'Water', wt ? `${Math.round(wt.temp)}°` : '…', wt ? `NOAA gauge near ${esc(p.short)}${(now - wt.t) / H > 3 ? ` · ${Math.round((now - wt.t) / H)} h old` : ''}` : extras.water === null ? 'Unavailable' : 'Loading'),
     tile(moon.icon, 'Moon', `${Math.round(moon.fraction * 100)}%`, moon.name),
     tile(sunNext[0] === 'Sunset' ? '🌇' : '🌅', sunNext[0], fmtTime(sunNext[1]), inMin(sunNext[1])),
@@ -183,7 +199,7 @@ async function renderSpots() {
     const nx = nextChange(hilo, now), flow = hilo ? flowAt(hilo, now) : null;
     const rt = extras.redtide ? redTideAt(extras.redtide, p.lat, p.lng) : null;
     const on = favs.includes(key);
-    const ctx = makeContext(p, now, { hilo, wind: extras.wind ? windAt(extras.wind, now) : null, temp: extras.water?.temp ?? typicalWater(now), sightings: extras.sightings, redtide: extras.redtide });
+    const ctx = makeContext(p, now, { hilo, wind: windHere(p, now), temp: extras.water?.temp ?? typicalWater(now), sightings: extras.sightings, redtide: extras.redtide });
     const fish = rankSpecies(ctx, extras.hist || []).find(r => !r.cr && !r.closed);
     return `<div class="spot ${key === active ? 'active' : ''}" data-key="${esc(key)}">
       <button type="button" class="spot-main" data-key="${esc(key)}" aria-label="Show ${esc(p.name)}">
@@ -211,7 +227,7 @@ function renderBiting(p, hilo, v, now) {
     const img = GUIDE[r.id]?.photos?.[0]?.src;
     return `<button type="button" class="fish" data-name="${esc(shortName(r.name))}">
       ${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : '<span class="fish-ph">🐟</span>'}
-      <span class="fish-body"><span class="fish-name">${esc(shortName(r.name))}${r.closed ? ' <span class="tag bad">Release</span>' : r.cr ? ' <span class="tag">C&amp;R</span>' : ''}</span>
+      <span class="fish-body"><span class="fish-name">${esc(shortName(r.name))}${r.closing ? ` <span class="tag warn">${closesText(r.closing, r.at)}</span>` : r.cr ? ' <span class="tag">C&amp;R</span>' : ''}</span>
       <span class="fish-why">${esc(r.why.slice(0, 2).join(' · ') || 'Good fit for this spot')}</span></span>
       <span class="fish-score">${r.score}</span>
     </button>`;
@@ -261,14 +277,23 @@ function renderTide(p, hilo, v, now) {
 
 function renderWeek(p, hilo, now) {
   const fc = forecast(now, 7, p.lat, p.lng, hilo, DAYTIME);
+  // knock down days when the daytime wind here is over your limit
+  const own = windCellAt(extras.cells, p.lat, p.lng);
+  for (const f of fc) {
+    const hrs = (own || []).filter(w => w.start >= +f.date + 7 * H && w.start < +f.date + 19 * H);
+    f.wind = hrs.length ? Math.max(...hrs.map(w => feltWind(p, w))) : null;
+    f.windy = f.wind != null && f.wind > windLimit();
+    if (f.windy) f.score = Math.max(0, f.score - 20);
+  }
   const best = fc.reduce((a, b) => b.score > a.score ? b : a);
   $('#week').innerHTML = `<div class="week-bars">${fc.map((f, i) => `
     <div class="wk ${f === best ? 'best' : ''}">
       <span class="wk-score">${f.score}</span>
       <span class="wk-bar"><span style="height:${Math.max(8, f.score)}%"></span></span>
       <span class="wk-day">${i === 0 ? 'Today' : f.date.toLocaleDateString([], { weekday: 'short' })}</span>
-      <span class="wk-moon">${f.moon.icon}</span>
+      <span class="wk-moon">${f.windy ? '<span title="Too windy" aria-label="Too windy">💨</span>' : f.moon.icon}</span>
     </div>`).join('')}</div>
+    ${fc.some(f => f.windy) ? `<p class="small warn">💨 = windier than your ${windLimit()} mph limit (change it on Plan).</p>` : ''}
     <p class="small"><strong>Best day: ${best === fc[0] ? 'today' : best.date.toLocaleDateString([], { weekday: 'long' })}</strong>, ${best.best.map(w => `${fmtTime(w.start)}–${fmtTime(new Date(+w.start + 2 * H))}`).join(' and ')}.</p>`;
 }
 

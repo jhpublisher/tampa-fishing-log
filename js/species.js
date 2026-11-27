@@ -54,6 +54,23 @@ export function isOpen(sp, date = new Date()) {
   });
 }
 
+// Days until the harvest season closes, if it closes within `within` days (else null).
+export function daysToClose(sp, date = new Date(), within = 14) {
+  if (!sp?.open || !isOpen(sp, date)) return null;
+  const d = new Date(date); d.setHours(12, 0, 0, 0);
+  for (let i = 1; i <= within; i++) {
+    d.setDate(d.getDate() + 1);
+    if (!isOpen(sp, d)) return i;
+  }
+  return null;
+}
+// "Closes Dec 1": n days after `from` is the first closed day.
+export function closesText(n, from = new Date()) {
+  if (n == null) return '';
+  const d = new Date(from); d.setDate(d.getDate() + n);
+  return n === 1 ? 'Closes tomorrow' : `Closes ${d.toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
+}
+
 export function ruleText(sp) {
   if (!sp) return '';
   const parts = [];
@@ -64,7 +81,7 @@ export function ruleText(sp) {
     else if (sp.min) parts.push(`Min ${sp.min}"${fl}`);
     if (sp.bag) parts.push(`Bag ${sp.bag}`);
   }
-  if (sp.open) parts.push(isOpen(sp) ? 'Open now' : 'CLOSED now');
+  if (sp.open) parts.push(isOpen(sp) ? (closesText(daysToClose(sp)) || 'Open now') : 'CLOSED now');
   if (sp.note) parts.push(sp.note);
   return parts.join(' · ');
 }
