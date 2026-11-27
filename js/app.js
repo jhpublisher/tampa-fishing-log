@@ -9,6 +9,8 @@ import { readExif } from './exif.js';
 import { pastWaterTemp } from './conditions.js';
 import { conditionsAt } from './catchcond.js';
 import { voiceWidget } from './voice.js';
+import { initImport, onOpen as importOpened } from './importer.js';
+import { syncSpotNotes } from './spotnotes.js';
 import * as outbox from './outbox.js';
 import { TIPS, SAFETY } from './tips.js';
 
@@ -28,7 +30,9 @@ function show(view) {
   const spb = document.getElementById('sp-back'); if (spb) spb.hidden = true;
   window.scrollTo(0, 0);
   if (view === 'log' && store.currentUser()) renderTrips();
+  if (view === 'import') { if (!store.currentUser()) return show('log'); importOpened(); }
 }
+initImport({ done: () => {} });
 $$('.tabs button').forEach(b => b.onclick = () => show(b.dataset.view));
 // Any element with data-go jumps to that tab (e.g. the license shortcut on My trips).
 document.addEventListener('click', e => { const t = e.target.closest('[data-go]'); if (t) show(t.dataset.go); });
@@ -469,6 +473,7 @@ store.watchAuth(u => {
   if (u) {
     authMsg(''); if ($('#view-log').classList.contains('active')) renderTrips();
     home.syncFavs(); // merge starred spots from the account with this phone's
+    syncSpotNotes();
     uploadWaiting();
   }
   else if ($('#view-trip').classList.contains('active')) show('log');

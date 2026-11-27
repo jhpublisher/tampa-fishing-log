@@ -1,10 +1,10 @@
-// Minimal JPEG EXIF reader: returns {time: Date|null, lat, lng} when present.
+// Minimal EXIF reader for JPEG (and HEIC, by finding its Exif block): returns {time: Date|null, lat, lng} when present.
 // Note: some phones strip location from photos picked in a browser.
 export async function readExif(file) {
   try {
     const buf = await file.slice(0, 256 * 1024).arrayBuffer();
     const v = new DataView(buf);
-    if (v.getUint16(0) !== 0xFFD8) return {};
+    if (v.getUint16(0) !== 0xFFD8) return await readOther(file);
     let o = 2;
     while (o < v.byteLength - 4) {
       const marker = v.getUint16(o), len = v.getUint16(o + 2);
@@ -55,4 +55,17 @@ function parseTiff(v, t) {
     }
   }
   return out;
+}
+
+// HEIC/HEIF and other containers: find "Exif\0\0" followed by a TIFF header anywhere in the file.
+async function readOther(file) {
+  if (file.size > 40e6) return {};
+  const v = new DataView(await file.arrayBuffer());
+  for (let o = 0; o < v.byteLength - 10; o++) {
+    if (v.getUint32(o) === 0x45786966 && v.getUint16(o + 4) === 0) {
+      const t = v.getUint16(o + 6);
+      if (t === 0x4949 || t === 0x4D4D) { try { return parseTiff(v, o + 6); } catch { return {}; } }
+    }
+  }
+  return {};
 }

@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600&display=swap">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=28">
+  <link rel="stylesheet" href="css/style.css?v=29">
 </head>
 <body data-view="today">
   <header class="hero">
@@ -61,6 +61,7 @@
       <div class="card" id="spot-info-card" hidden>
         <div class="card-head"><h2 id="spot-info-title">About this spot</h2><span class="muted small">how to fish it</span></div>
         <div id="spot-info"></div>
+        <div id="spot-notes" class="spot-notes"></div>
       </div>
 
       <div class="card">
@@ -102,8 +103,29 @@
       <div id="trips-area" class="hidden">
         <button type="button" id="license-link" class="lic-link" data-go="license" hidden></button>
         <button class="primary wide" id="new-trip-btn">+ New trip</button>
+        <button type="button" class="wide imp-open" data-go="import">📥 Import old fish photos</button>
         <div id="trip-list"></div>
         <p class="small muted" style="text-align:center">Signed in as <span id="who"></span> · <button type="button" id="signout-btn">Sign out</button></p>
+      </div>
+    </section>
+
+    <!-- IMPORT OLD PHOTOS -->
+    <section id="view-import" class="view">
+      <div class="card" id="import-area">
+        <h2>Import old fish photos</h2>
+        <p class="small muted">Pick a batch of fish photos. Each photo's date, time and location become a trip, with the tide, weather and moon looked up for that moment. Tag each fish, then save.</p>
+        <label class="pic-btn">📷 Choose photos<input type="file" id="imp-photos" accept="image/*" multiple></label>
+        <div id="imp-gps-tip" class="tip-box small" hidden>
+          <strong>Some photos have no location.</strong> iPhone removes it unless you ask: in the photo picker tap <b>Options</b> at the top and turn on <b>Location</b>, then pick again. Or choose the spot for each trip below.
+        </div>
+        <label class="pic-btn secondary">🤖 Load Claude's tags (optional)<input type="file" id="imp-tags" accept=".json,application/json"></label>
+        <p class="small muted">If Claude tagged your photos, save the <b>fish-tags.json</b> file to Files and load it here. Photos Claude wasn't sure about are marked for you to check.</p>
+        <p id="imp-msg" class="small"></p>
+      </div>
+      <div id="imp-list"></div>
+      <div class="card imp-foot">
+        <p id="imp-status" class="small"></p>
+        <div class="row end"><button type="button" id="imp-clear" hidden>Start over</button><button type="button" data-go="log">Back</button><button type="button" id="imp-save" class="primary" hidden>Save</button></div>
       </div>
     </section>
 
@@ -332,7 +354,7 @@
   <script src="vendor/leaflet/leaflet.js"></script>
   <script src="vendor/suncalc/suncalc.js"></script>
   <script src="vendor/supabase/supabase.js"></script>
-  <script type="module" src="js/app.js?v=28"></script>
-  <script type="module" src="js/plan.js?v=28"></script>
+  <script type="module" src="js/app.js?v=29"></script>
+  <script type="module" src="js/plan.js?v=29"></script>
 </body>
 </html>

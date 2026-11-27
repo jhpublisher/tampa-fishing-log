@@ -37,6 +37,15 @@ export async function saveMySpots(list) {
   if (!error && data?.user) user = data.user;
 }
 
+// Spot history notes: { [placeKey]: {name, lat, lng, species, months, tide, note, updated} } (see spotnotes.js).
+export const getSpotNotes = () => user?.user_metadata?.spotNotes || {};
+export async function saveSpotNotes(notes) {
+  if (!user) return;
+  const { data, error } = await sb.auth.updateUser({ data: { spotNotes: notes } });
+  if (error) throw error;
+  if (data?.user) user = data.user;
+}
+
 const fail = (error, what) => { if (error) throw new Error(`${what}: ${error.message}`); };
 
 // Every stored file a trip points at: catch photo, setup photo, voice notes (catch and trip).

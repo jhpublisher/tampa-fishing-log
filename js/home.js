@@ -9,6 +9,7 @@ import { recentSightings, redTideSamples, redTideAt, reportFish } from './sighti
 import { GUIDE } from './guide.js';
 import { closesText } from './species.js';
 import * as store from './store.js';
+import { renderSpotNotes } from './spotnotes.js';
 import { attachSearch, osmSearch, groupedSpots, refPoint, saveLoc } from './placesearch.js';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -27,6 +28,7 @@ function windHere(p, t) {
   return w ? { ...w, sky: bay?.sky || '' } : bay;
 }
 document.addEventListener('wind-limit', () => render());
+document.addEventListener('spot-notes', () => render());
 const fmtTime = d => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(':00', '').replace(/\s?([AP])M/i, (_, x) => x.toLowerCase() === 'a' ? 'am' : 'pm');
 const isToday = d => d.toDateString() === new Date().toDateString();
 const when = d => isToday(d) ? fmtTime(d) : `${d.toLocaleDateString([], { weekday: 'short' })} ${fmtTime(d)}`;
@@ -282,7 +284,7 @@ function renderSpotInfo(p, hilo, now) {
   const card = $('#spot-info-card'); if (!card) return;
   const isSpot = p.key.startsWith('spot:');
   const acc = isSpot ? accessOf(p) : [], info = isSpot ? infoOf(p) : null;
-  if (!acc.length && !info) { card.hidden = true; return; }
+  if (!acc.length && !info && !isSpot) { card.hidden = true; return; }
   card.hidden = false;
   $('#spot-info-title').textContent = p.short;
   const facts = info ? [info.parking && `🅿️ ${info.parking}`, info.restrooms && '🚻 Restrooms', info.bait && '🦐 Bait shop', info.launch && '🛶 Kayak launch', info.kids && '👧 Good for kids'].filter(Boolean) : [];
@@ -292,6 +294,7 @@ function renderSpotInfo(p, hilo, now) {
     ${acc.includes('wade') ? wadeWindow(p, hilo, now) : ''}
     <div class="row"><a class="btn" href="https://maps.apple.com/?daddr=${p.lat},${p.lng}" target="_blank" rel="noopener">Directions ↗</a></div>
     ${info ? '<p class="small muted">Check hours and fees before you go.</p>' : ''}`;
+  renderSpotNotes($('#spot-notes'), p);
 }
 
 // Daylight low tides over the next 3 days, with when the water comes back up about a foot.
