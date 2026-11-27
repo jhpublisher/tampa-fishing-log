@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-27T02:15:19.867Z",
+ "updated": "2026-11-27T12:18:57.973Z",
  "items": [
   {
    "title": "Fish should be active ahead of holiday",
@@ -7,7 +7,11 @@
    "date": "2026-11-20T16:34:10.000Z",
    "summary": "Captain Dylan Hubbard with Hubbard’s Marina says recent weather patterns have stirred up the fish, and they should be feeding heavily.",
    "source": "FOX 13 Friday report",
-   "area": "Tampa Bay"
+   "area": "Tampa Bay",
+   "mentions": {
+    "fish": [],
+    "at": []
+   }
   },
   {
    "title": "Cool air coming with rough winds",
@@ -15,7 +19,11 @@
    "date": "2026-11-13T15:34:33.000Z",
    "summary": "Say goodbye to the smooth sailing. Captain Dylan Hubbard of Hubbard’s Marina says a cold front is about to break our streak of great weather, bringing brisk…",
    "source": "FOX 13 Friday report",
-   "area": "Tampa Bay"
+   "area": "Tampa Bay",
+   "mentions": {
+    "fish": [],
+    "at": []
+   }
   },
   {
    "title": "Better bite on calmer waters",
@@ -23,7 +31,11 @@
    "date": "2026-11-06T13:32:50.000Z",
    "summary": "Weather conditions are finally lining up for local fishing, according to Captain Dylan Hubbard of Hubbard’s Marina, who is hoping for manageable, moderate…",
    "source": "FOX 13 Friday report",
-   "area": "Tampa Bay"
+   "area": "Tampa Bay",
+   "mentions": {
+    "fish": [],
+    "at": []
+   }
   },
   {
    "title": "The life of the Redfish By: Capt. George Hastick",
@@ -31,7 +43,13 @@
    "date": "2026-11-01T08:55:26.000Z",
    "summary": "The red drum is one of the most iconic sport fish in Tampa Bay. These resilient fish navigate a multi-stage …",
    "source": "Coastal Angler · Tampa Bay",
-   "area": "Tampa Bay"
+   "area": "Tampa Bay",
+   "mentions": {
+    "fish": [
+     "redfish"
+    ],
+    "at": []
+   }
   },
   {
    "title": "A Lesson Learned: A.I. By: Capt. TJ Shea",
@@ -39,7 +57,11 @@
    "date": "2026-11-01T08:50:35.000Z",
    "summary": "All the talk these days is about AI and the dangers that come with it. Rightfully so. But I never …",
    "source": "Coastal Angler · Tampa Bay",
-   "area": "Tampa Bay"
+   "area": "Tampa Bay",
+   "mentions": {
+    "fish": [],
+    "at": []
+   }
   },
   {
    "title": "New Port Richey Report By: Capt. Bill Rutherford",
@@ -47,7 +69,11 @@
    "date": "2026-11-01T08:45:46.000Z",
    "summary": "Cooler Weather, Hotter Fishing! Well, it looks like Mother Nature finally remembered what November is supposed to look like on …",
    "source": "Coastal Angler · Tampa Bay",
-   "area": "Tampa Bay"
+   "area": "Tampa Bay",
+   "mentions": {
+    "fish": [],
+    "at": []
+   }
   },
   {
    "title": "Capt. Sergio’s Corner By: Capt. Sergio Atanes",
@@ -55,7 +81,17 @@
    "date": "2026-11-01T08:40:03.000Z",
    "summary": "Flounder–The Overlooked Fish Tampa Bay offers anglers a wide variety of species, including redfish, snook, trout, and cobia. As a …",
    "source": "Coastal Angler · Tampa Bay",
-   "area": "Tampa Bay"
+   "area": "Tampa Bay",
+   "mentions": {
+    "fish": [
+     "snook",
+     "redfish",
+     "trout",
+     "flounder",
+     "cobia"
+    ],
+    "at": []
+   }
   },
   {
    "title": "Florida’s Night Herons By: Wes Tallyn",
@@ -63,7 +99,11 @@
    "date": "2026-11-01T08:35:33.000Z",
    "summary": "There are two species of herons that are nocturnal in Florida and are not as often seen as the other …",
    "source": "Coastal Angler · Tampa Bay",
-   "area": "Tampa Bay"
+   "area": "Tampa Bay",
+   "mentions": {
+    "fish": [],
+    "at": []
+   }
   },
   {
    "title": "Waiting out the winds",
@@ -71,7 +111,11 @@
    "date": "2026-10-30T17:27:25.000Z",
    "summary": "Captain Dylan Hubbard of Hubbard’s Marina says relentless winds have kept boats close to shore, making it difficult to venture into deeper waters or make…",
    "source": "FOX 13 Friday report",
-   "area": "Tampa Bay"
+   "area": "Tampa Bay",
+   "mentions": {
+    "fish": [],
+    "at": []
+   }
   },
   {
    "title": "Windy weekend for fishing",
@@ -79,7 +123,11 @@
    "date": "2026-10-23T12:52:38.000Z",
    "summary": "Captain Dylan Hubbard with Hubbard’s Marina says water temperatures have dropped like a rock and stirred up conditions will move around the fish.",
    "source": "FOX 13 Friday report",
-   "area": "Tampa Bay"
+   "area": "Tampa Bay",
+   "mentions": {
+    "fish": [],
+    "at": []
+   }
   },
   {
    "title": "Fish feel cold front coming",
@@ -87,7 +135,11 @@
    "date": "2026-10-16T16:23:39.000Z",
    "summary": "Captain Dylan Hubbard with Hubbard’s Marina says anglers are trying to get on the water ahead of a cold front and take advantage of the pre-front bite.",
    "source": "FOX 13 Friday report",
-   "area": "Tampa Bay"
+   "area": "Tampa Bay",
+   "mentions": {
+    "fish": [],
+    "at": []
+   }
   },
   {
    "title": "October: The Month of Opportunities! By: Capt. George Hastick",
@@ -95,7 +147,11 @@
    "date": "2026-10-01T08:00:42.000Z",
    "summary": "October is one of the best months of the year for fishing in St. Petersburg, Florida. As summer’s intense heat …",
    "source": "Coastal Angler · Tampa Bay",
-   "area": "Tampa Bay"
+   "area": "Tampa Bay",
+   "mentions": {
+    "fish": [],
+    "at": []
+   }
   }
  ],
  "sources": [
