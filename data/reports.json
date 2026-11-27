@@ -1,6 +1,30 @@
 {
- "updated": "2026-11-27T02:10:16.684Z",
+ "updated": "2026-11-27T02:15:19.867Z",
  "items": [
+  {
+   "title": "Fish should be active ahead of holiday",
+   "url": "https://www.fox13news.com/video/fmc-07ruex614fed2e64",
+   "date": "2026-11-20T16:34:10.000Z",
+   "summary": "Captain Dylan Hubbard with Hubbard’s Marina says recent weather patterns have stirred up the fish, and they should be feeding heavily.",
+   "source": "FOX 13 Friday report",
+   "area": "Tampa Bay"
+  },
+  {
+   "title": "Cool air coming with rough winds",
+   "url": "https://www.fox13news.com/video/fmc-iuohkyjlbwpckis5",
+   "date": "2026-11-13T15:34:33.000Z",
+   "summary": "Say goodbye to the smooth sailing. Captain Dylan Hubbard of Hubbard’s Marina says a cold front is about to break our streak of great weather, bringing brisk…",
+   "source": "FOX 13 Friday report",
+   "area": "Tampa Bay"
+  },
+  {
+   "title": "Better bite on calmer waters",
+   "url": "https://www.fox13news.com/video/fmc-q2rau54k1vdrq8p3",
+   "date": "2026-11-06T13:32:50.000Z",
+   "summary": "Weather conditions are finally lining up for local fishing, according to Captain Dylan Hubbard of Hubbard’s Marina, who is hoping for manageable, moderate…",
+   "source": "FOX 13 Friday report",
+   "area": "Tampa Bay"
+  },
   {
    "title": "The life of the Redfish By: Capt. George Hastick",
    "url": "https://coastalanglermag.com/the-life-of-the-redfish-by-capt-george-hastick/",
@@ -32,33 +56,63 @@
    "summary": "Flounder–The Overlooked Fish Tampa Bay offers anglers a wide variety of species, including redfish, snook, trout, and cobia. As a …",
    "source": "Coastal Angler · Tampa Bay",
    "area": "Tampa Bay"
+  },
+  {
+   "title": "Florida’s Night Herons By: Wes Tallyn",
+   "url": "https://coastalanglermag.com/floridas-night-herons-by-wes-tallyn/",
+   "date": "2026-11-01T08:35:33.000Z",
+   "summary": "There are two species of herons that are nocturnal in Florida and are not as often seen as the other …",
+   "source": "Coastal Angler · Tampa Bay",
+   "area": "Tampa Bay"
+  },
+  {
+   "title": "Waiting out the winds",
+   "url": "https://www.fox13news.com/video/fmc-yn3nm5cupqbdhiv4",
+   "date": "2026-10-30T17:27:25.000Z",
+   "summary": "Captain Dylan Hubbard of Hubbard’s Marina says relentless winds have kept boats close to shore, making it difficult to venture into deeper waters or make…",
+   "source": "FOX 13 Friday report",
+   "area": "Tampa Bay"
+  },
+  {
+   "title": "Windy weekend for fishing",
+   "url": "https://www.fox13news.com/video/fmc-i0yrx14ymqg7lvrr",
+   "date": "2026-10-23T12:52:38.000Z",
+   "summary": "Captain Dylan Hubbard with Hubbard’s Marina says water temperatures have dropped like a rock and stirred up conditions will move around the fish.",
+   "source": "FOX 13 Friday report",
+   "area": "Tampa Bay"
+  },
+  {
+   "title": "Fish feel cold front coming",
+   "url": "https://www.fox13news.com/video/fmc-if1h21q3noohtuuo",
+   "date": "2026-10-16T16:23:39.000Z",
+   "summary": "Captain Dylan Hubbard with Hubbard’s Marina says anglers are trying to get on the water ahead of a cold front and take advantage of the pre-front bite.",
+   "source": "FOX 13 Friday report",
+   "area": "Tampa Bay"
+  },
+  {
+   "title": "October: The Month of Opportunities! By: Capt. George Hastick",
+   "url": "https://coastalanglermag.com/october-the-month-of-opportunities-by-capt-george-hastick/",
+   "date": "2026-10-01T08:00:42.000Z",
+   "summary": "October is one of the best months of the year for fishing in St. Petersburg, Florida. As summer’s intense heat …",
+   "source": "Coastal Angler · Tampa Bay",
+   "area": "Tampa Bay"
   }
  ],
  "sources": [
   {
    "source": "Coastal Angler · Tampa Bay",
    "ok": true,
-   "count": 8
+   "count": 10
   },
   {
-   "source": "Tampa Bay Beacons",
-   "ok": false,
-   "error": "Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON"
+   "source": "FOX 13 Friday report",
+   "ok": true,
+   "count": 8
   },
   {
    "source": "Hubbard's Marina",
    "ok": true,
    "count": 0
-  },
-  {
-   "source": "Tampa Free Press",
-   "ok": false,
-   "error": "HTTP 401"
-  },
-  {
-   "source": "r/floridafishing",
-   "ok": false,
-   "error": "HTTP 404"
   }
  ]
 }
