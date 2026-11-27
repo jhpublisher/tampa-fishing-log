@@ -12,11 +12,14 @@ const MAX_AGE_DAYS = 60;
 const SOURCES = [
   { name: 'Coastal Angler · Tampa Bay', area: 'Tampa Bay', type: 'rss',
     url: 'https://coastalanglermag.com/category/tampa-bay/tampa-bay-fishing-reports-forecasts/feed/' },
-  { name: 'Tampa Bay Beacons', area: 'Tampa Bay', type: 'rss', url: 'https://www.tampabaybeacons.com/?s=fishin+report&feed=rss2', match: /fish/i },
+  { name: 'Tampa Bay Beacons', area: 'Tampa Bay', type: 'rss', match: /fish/i, url: [
+    'https://www.tampabaybeacons.com/?s=fishin&feed=rss2', 'https://www.tampabaybeacons.com/tag/fishing/feed/',
+    'https://www.tampabaybeacons.com/category/outdoors/feed/', 'https://www.tampabaybeacons.com/feed/'] },
   { name: "Hubbard's Marina", area: "John's Pass", type: 'wp', url: 'https://www.hubbardsmarina.com', search: 'fishing report', match: /report/i },
-  { name: 'Tampa Free Press', area: 'Gulf Coast', type: 'rss', url: 'https://www.tampafp.com/?s=fishing+report&feed=rss2', match: /fishing report/i },
+  { name: 'Tampa Free Press', area: 'Gulf Coast', type: 'rss', match: /fishing report/i, url: [
+    'https://www.tampafp.com/?s=fishing+report&feed=rss2', 'https://www.tampafp.com/tag/fishing-report/feed/', 'https://www.tampafp.com/feed/'] },
   { name: 'r/floridafishing', area: 'Tampa · St. Pete · Clearwater', type: 'rss',
-    url: 'https://www.reddit.com/r/floridafishing/new/.rss?limit=100',
+    url: ['https://www.reddit.com/r/floridafishing/new/.rss?limit=100', 'https://old.reddit.com/r/floridafishing/new/.rss', 'https://www.reddit.com/r/floridafishing.rss'],
     match: /tampa|st\.? ?pete|petersburg|clearwater|skyway|pinellas|hillsborough|apollo beach|ruskin|dunedin|gandy|fort de ?soto|john'?s pass|madeira|treasure island|safety harbor|oldsmar|bradenton|anna maria|tarpon springs/i },
 ];
 
@@ -41,7 +44,18 @@ async function wp(src) {
 }
 
 async function rss(src) {
-  const xml = await get(src.url);
+  const urls = [].concat(src.url), all = [], errs = [];
+  for (const u of urls) {
+    try { const got = await rssOne(u, src); console.log(`${u}: ${got.length} items, newest "${got[0]?.title || ''}" ${got[0]?.date?.toISOString?.() || ''}`); all.push(...got); }
+    catch (e) { console.log(`${u}: ${e.message}`); errs.push(e); }
+  }
+  if (!all.length && errs.length === urls.length) throw errs[0];
+  const seen = new Set();
+  return all.filter(x => !seen.has(x.url) && seen.add(x.url)).sort((a, b) => b.date - a.date);
+}
+
+async function rssOne(url, src) {
+  const xml = await get(url);
   const items = xml.match(/<item[\s>][\s\S]*?<\/item>/gi) || xml.match(/<entry[\s>][\s\S]*?<\/entry>/gi) || [];
   return items.slice(0, 100).map(it => {
     const atomLink = (it.match(/<link[^>]*href="([^"]+)"/i) || [])[1];
@@ -49,7 +63,7 @@ async function rss(src) {
       title: decode(tag(it, 'title')),
       url: decode(tag(it, 'link')) || atomLink,
       date: new Date(decode(tag(it, 'pubDate') || tag(it, 'updated') || tag(it, 'published'))),
-      summary: src.url.includes('reddit.com') ? '' : teaser(tag(it, 'description') || tag(it, 'summary')),
+      summary: url.includes('reddit.com') ? '' : teaser(tag(it, 'description') || tag(it, 'summary')),
     };
   });
 }
@@ -61,7 +75,7 @@ for (const src of SOURCES) {
   try {
     const got = (await (src.type === 'wp' ? wp(src) : rss(src)))
       .filter(x => x.title && x.url && !isNaN(x.date) && +x.date > cutoff && (!src.match || src.match.test(x.title)));
-    got.slice(0, src.url.includes('reddit') ? 4 : 6).forEach(x => items.push({ ...x, source: src.name, area: src.area }));
+    got.slice(0, src.name.startsWith('r/') ? 4 : 6).forEach(x => items.push({ ...x, source: src.name, area: src.area }));
     status.push({ source: src.name, ok: true, count: got.length });
   } catch (e) {
     // keep that source's last good items so one bad fetch doesn't blank the card
