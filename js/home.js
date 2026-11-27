@@ -467,9 +467,9 @@ export function openMap(key = active) {
 }
 
 let toastT;
-function toast(msg) {
+export function toast(msg, ms = 1800) {
   const t = $('#toast'); t.textContent = msg; t.classList.add('show');
-  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1800);
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), ms);
 }
 
 // ---------- wire up ----------

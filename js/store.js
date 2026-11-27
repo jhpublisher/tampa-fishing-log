@@ -42,7 +42,7 @@ const fail = (error, what) => { if (error) throw new Error(`${what}: ${error.mes
 // Every stored file a trip points at: catch photo, setup photo, voice notes (catch and trip).
 const filePaths = t => [
   ...(t.voices || []).map(v => v.path),
-  ...(t.catches || []).flatMap(c => [c.photoPath, c.setupPath, ...(c.voices || []).map(v => v.path)]),
+  ...(t.catches || []).flatMap(c => [c.photoPath, ...(c.morePaths || []), c.setupPath, ...(c.voices || []).map(v => v.path)]),
 ].filter(Boolean);
 
 // Adds short-lived URLs (photoUrl, setupUrl, voice url) for stored files.
@@ -57,6 +57,7 @@ async function addPhotoUrls(trips) {
     (t.catches || []).forEach(c => {
       if (c.photoPath) c.photoUrl = map.get(c.photoPath) || null;
       if (c.setupPath) c.setupUrl = map.get(c.setupPath) || null;
+      c.moreUrls = (c.morePaths || []).map(p => map.get(p) || null);
       (c.voices || []).forEach(v => { v.url = map.get(v.path) || null; });
     });
   }
@@ -101,8 +102,10 @@ export async function saveTrip(trip) {
   };
   const catches = [];
   for (const c of trip.catches || []) {
-    const { photo, photoUrl, setup, setupUrl, ...rest } = c;
+    const { photo, photoUrl, setup, setupUrl, more, moreUrls, ...rest } = c;
     if (photo instanceof Blob) rest.photoPath = await upload(photo, 'jpg', 'Uploading photo');
+    // extra photos: [Blob | stored path]
+    if (more?.length) { rest.morePaths = []; for (const m of more) rest.morePaths.push(m instanceof Blob ? await upload(m, 'jpg', 'Uploading photo') : m); }
     if (setup instanceof Blob) rest.setupPath = await upload(setup, 'jpg', 'Uploading setup photo');
     rest.voices = await saveVoices(c.voices);
     catches.push(rest);
@@ -126,14 +129,14 @@ export async function deleteTrip(id) {
 export const newId = () => crypto.randomUUID?.() ??
   'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
 
-// Shrink photos before upload (max 1600 px, JPEG).
-export async function shrinkPhoto(file, max = 1600) {
+// Shrink photos before upload (max 2400 px, JPEG): sharp enough to share, small enough for weak signal.
+export async function shrinkPhoto(file, max = 2400) {
   const bmp = await createImageBitmap(file);
   const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
   const c = document.createElement('canvas');
   c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
   c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
-  return new Promise(r => c.toBlob(r, 'image/jpeg', 0.82));
+  return new Promise(r => c.toBlob(r, 'image/jpeg', 0.85));
 }
 
 // Fishing license: details on the user's account, photos in the private bucket

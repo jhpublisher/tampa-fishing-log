@@ -9,6 +9,7 @@ import { readExif } from './exif.js';
 import { pastWaterTemp } from './conditions.js';
 import { conditionsAt } from './catchcond.js';
 import { voiceWidget } from './voice.js';
+import * as outbox from './outbox.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -35,16 +36,24 @@ document.addEventListener('click', e => { const t = e.target.closest('[data-go]'
 const urls = []; // object URLs to free on re-render
 async function renderTrips() {
   urls.splice(0).forEach(u => URL.revokeObjectURL(u));
-  let trips;
-  try { trips = await store.listTrips(); } catch (e) { $('#trip-list').innerHTML = `<p class="bad">${esc(e.message)}</p>`; return; }
+  let trips, pending = await outbox.pendingTrips();
+  try { trips = await store.listTrips(); } catch (e) {
+    if (!pending.length) { $('#trip-list').innerHTML = `<p class="bad">${esc(e.message)}</p>`; return; }
+    trips = [];
+  }
+  // trips waiting to upload show first, with their photos from this phone
+  const ids = new Set(pending.map(t => t.id));
+  for (const t of pending) for (const c of t.catches || []) if (c.photo instanceof Blob) { c.photoUrl = URL.createObjectURL(c.photo); urls.push(c.photoUrl); }
+  trips = [...pending, ...trips.filter(t => !ids.has(t.id))];
   if (!trips.length) { $('#trip-list').innerHTML = `<div class="empty"><svg viewBox="0 0 120 60" aria-hidden="true"><path d="M10 30c18-22 52-26 78-6l20-14v40l-20-14c-26 20-60 16-78-6z"/><circle cx="34" cy="27" r="3"/></svg><p>No trips logged yet.<br>Tap <strong>New trip</strong> after your next time on the water.</p></div>`; return; }
   $('#trip-list').innerHTML = trips.map(t => {
-    const sp = [...new Set((t.catches || []).map(c => byId(c.species)?.name || 'Other'))];
-    const photos = (t.catches || []).filter(c => c.photoUrl).map(c => `<img src="${esc(c.photoUrl)}" alt="" loading="lazy">`).join('');
+    const sp = [...new Set((t.catches || []).map(c => c.species === 'other' && c.otherName ? c.otherName : byId(c.species)?.name || 'Other'))];
+    const n = (t.catches || []).reduce((a, c) => a + (c.count || 1), 0);
+    const photos = (t.catches || []).flatMap(c => [c.photoUrl, ...(c.moreUrls || [])]).filter(Boolean).map(u => `<img src="${esc(u)}" alt="" loading="lazy">`).join('');
     return `<div class="card trip" data-id="${t.id}">
       <div class="row" style="justify-content:space-between"><strong>${esc(t.spot || 'Unnamed spot')}</strong>
         <span class="small muted">${esc(t.date)} ${esc(t.start || '')}</span></div>
-      <div class="small">${(t.catches || []).length} catch${(t.catches || []).length === 1 ? '' : 'es'}${sp.length ? ': ' + esc(sp.join(', ')) : ''}</div>
+      <div class="small">${t._queued ? '<span class="pending">⏳ Waiting for signal to upload · </span>' : ''}${n} fish${sp.length ? ': ' + esc(sp.join(', ')) : ''}${(t.catches || []).some(c => c.first) ? ' · ⭐' : ''}</div>
       ${t.conditions ? `<div class="small muted">${esc(t.conditions)}</div>` : ''}
       ${photos ? `<div class="photos">${photos}</div>` : ''}
     </div>`;
@@ -113,56 +122,70 @@ function addCatchRow(c = {}) {
   const sel = $('[name=species]', fs);
   sel.innerHTML = speciesOptions();
   sel.value = c.species || '';
-  $('[name=length]', fs).value = c.length ?? '';
-  $('[name=weight]', fs).value = c.weight ?? '';
-  $('[name=bait]', fs).value = c.bait || '';
-  $('[name=cast]', fs).value = c.cast || '';
-  $('[name=waterDepth]', fs).value = c.waterDepth ?? '';
-  $('[name=fishDepth]', fs).value = c.fishDepth ?? '';
-  $('[name=setupText]', fs).value = c.setupText || '';
-  $('[name=time]', fs).value = c.time || '';
+  for (const k of ['length', 'weight', 'waterDepth', 'fishDepth']) $(`[name=${k}]`, fs).value = c[k] ?? '';
+  for (const k of ['bait', 'cast', 'setupText', 'time', 'otherName', 'angler']) $(`[name=${k}]`, fs).value = c[k] || '';
+  $('[name=count]', fs).value = c.count || 1;
   $('[name=kept]', fs).checked = !!c.kept;
-  fs._photo = null; // new photo (Blob) not yet uploaded
-  fs._photoPath = c.photoPath || null;
-  fs._setup = null; fs._setupPath = c.setupPath || null;
+  $('[name=first]', fs).checked = !!c.first;
+  // open "More" when it already holds something, so nothing looks lost
+  if (c.weight || c.cast || c.waterDepth || c.fishDepth || c.bait || c.setupText || c.setupPath || c.angler || c.voices?.length) $('.more', fs).open = true;
+  // photos: [{blob} new, or {path, url} stored]; the first one is the main photo
+  fs._pics = [
+    ...(c.photoPath || c.photo ? [{ path: c.photoPath, url: c.photoUrl, blob: c.photo instanceof Blob ? c.photo : null }] : []),
+    ...(c.morePaths || []).map((p, i) => ({ path: p, url: c.moreUrls?.[i] })),
+    ...(c.more || []).map(m => m instanceof Blob ? { blob: m } : { path: m })
+      .filter(m => m.blob || !(c.morePaths || []).includes(m.path)),
+  ];
+  fs._setup = c.setup instanceof Blob ? c.setup : null; fs._setupPath = c.setupPath || null;
   fs._cond = c.cond || null;
   fs._voice = voiceWidget($('.catch-voice', fs), c.voices || [], 'Voice note');
-  const img = $('.thumb', fs), setupImg = $('.setup-thumb', fs);
-  const showPhoto = () => {
-    const src = fs._photo ? URL.createObjectURL(fs._photo) : c.photoUrl;
-    if (src) { img.src = src; img.classList.remove('hidden'); }
+  const setupImg = $('.setup-thumb', fs);
+  const showPhotos = () => {
+    $('.pics', fs).innerHTML = fs._pics.map((p, i) => {
+      const src = p.blob ? (p._u ||= URL.createObjectURL(p.blob)) : p.url;
+      return src ? `<div class="pic"><img src="${esc(src)}" alt="Catch photo ${i + 1}"><button type="button" data-rm="${i}" aria-label="Remove photo ${i + 1}">✕</button></div>` : '';
+    }).join('');
+    $$('[data-rm]', fs).forEach(b => b.onclick = () => { fs._pics.splice(+b.dataset.rm, 1); showPhotos(); });
+    $('.share-catch', fs).classList.toggle('hidden', !fs._pics.length);
     const s2 = fs._setup ? URL.createObjectURL(fs._setup) : c.setupUrl;
     if (s2) { setupImg.src = s2; setupImg.classList.remove('hidden'); }
   };
-  showPhoto();
+  showPhotos();
   $('[name=setup]', fs).onchange = async e => {
     const file = e.target.files[0]; if (!file) return;
-    fs._setup = await store.shrinkPhoto(file); showPhoto();
+    fs._setup = await store.shrinkPhoto(file, 1600); showPhotos();
   };
   showCond(fs);
   $('[name=time]', fs).addEventListener('change', () => refreshCond(fs));
 
   const update = () => {
     const sp = byId(sel.value);
-    $('.rule', fs).textContent = ruleText(sp);
+    $('.other-name', fs).classList.toggle('hidden', sel.value !== 'other');
+    $('.rule', fs).textContent = sel.value === 'other' ? 'Not in the guide. Check FWC before you keep it.' : ruleText(sp);
     const res = $('.check-result', fs);
     if ($('[name=kept]', fs).checked && sp) {
       const r = checkKeep(sp, +$('[name=length]', fs).value || null, new Date(form.date.value + 'T12:00'));
-      res.textContent = r?.msg || ''; res.className = `check-result small ${r?.level || ''}`;
+      const n = +$('[name=count]', fs).value || 1;
+      const out = sp.bag && n > sp.bag ? { level: 'bad', msg: `Bag limit is ${sp.bag} per person per day.` } : r;
+      res.textContent = out?.msg || ''; res.className = `check-result small ${out?.level || ''}`;
     } else res.textContent = '';
   };
-  sel.onchange = update; $('[name=length]', fs).oninput = update; $('[name=kept]', fs).onchange = update;
+  sel.onchange = update; $('[name=length]', fs).oninput = update; $('[name=kept]', fs).onchange = update; $('[name=count]', fs).oninput = update;
   $('.remove-catch', fs).onclick = () => {
     // easy to hit by accident with wet hands, so ask before throwing away a filled-in catch
-    const filled = [...fs.querySelectorAll('input, select, textarea')].some(i => i.type === 'checkbox' ? i.checked : i.type !== 'hidden' && i.value);
+    const filled = fs._pics.length || [...fs.querySelectorAll('input, select, textarea')]
+      .some(i => i.type === 'checkbox' ? i.checked : i.type !== 'file' && i.name !== 'count' && i.value);
     if (!filled || confirm('Remove this catch?')) fs.remove();
   };
+  $('.share-catch', fs).onclick = () => shareCatch(fs);
 
   $('[name=photo]', fs).onchange = async e => {
-    const file = e.target.files[0]; if (!file) return;
-    const ex = await readExif(file);
-    fs._photo = await store.shrinkPhoto(file);
-    showPhoto();
+    const files = [...e.target.files]; if (!files.length) return;
+    const first = !fs._pics.length;
+    const ex = first ? await readExif(files[0]) : {};
+    for (const f of files) fs._pics.push({ blob: await store.shrinkPhoto(f) });
+    e.target.value = '';
+    showPhotos();
     if (ex.time) {
       $('[name=time]', fs).value = `${String(ex.time.getHours()).padStart(2, '0')}:${String(ex.time.getMinutes()).padStart(2, '0')}`;
       // Photo taken on another day? Use that day for the trip if this is a new, empty trip.
@@ -171,19 +194,53 @@ function addCatchRow(c = {}) {
     }
     if (ex.lat != null && editing.lat == null) setPin(ex.lat, ex.lng, 14);
     // iPhones often strip location from photos; use where you are now instead.
-    else if (editing.lat == null && navigator.geolocation) {
+    else if (first && editing.lat == null && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(p => { if (editing.lat == null) setPin(p.coords.latitude, p.coords.longitude, 14); refreshCond(fs); }, () => { }, { enableHighAccuracy: true, timeout: 15000 });
     }
     refreshCond(fs);
   };
   $('#catch-list').appendChild(fs);
   update();
+  return fs;
+}
+
+// ---------- share a catch as a picture card ----------
+async function shareCatch(fs) {
+  const p = fs._pics[0]; if (!p) return;
+  const btn = $('.share-catch', fs); btn.disabled = true;
+  try {
+    const blob = p.blob || await fetch(p.url).then(r => r.blob());
+    const bmp = await createImageBitmap(blob);
+    const W = 1080, PH = 1080, c = document.createElement('canvas'); c.width = W; c.height = PH + 270;
+    const g = c.getContext('2d');
+    const k = Math.max(W / bmp.width, PH / bmp.height); // cover-crop the photo into a square
+    g.drawImage(bmp, (W - bmp.width * k) / 2, (PH - bmp.height * k) / 2, bmp.width * k, bmp.height * k);
+    g.fillStyle = '#0d3b4c'; g.fillRect(0, PH, W, 270);
+    const sp = $('[name=species]', fs).value;
+    const name = sp === 'other' ? ($('[name=otherName]', fs).value.trim() || 'Fish') : (byId(sp)?.name || 'Catch');
+    const len = +$('[name=length]', fs).value, n = +$('[name=count]', fs).value || 1;
+    const who = $('[name=angler]', fs).value.trim(), first = $('[name=first]', fs).checked;
+    g.fillStyle = '#fff8ec'; g.font = '700 64px Georgia, serif';
+    g.fillText(`${first ? '⭐ ' : ''}${n > 1 ? n + ' × ' : ''}${name}${len ? ` · ${len}"` : ''}`, 48, PH + 100, W - 96);
+    g.font = '500 38px system-ui, sans-serif'; g.fillStyle = '#f3c98b';
+    const when = new Date(`${form.date.value}T12:00`).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    // spot name only, never GPS coordinates
+    g.fillText([who, form.spot.value.trim(), when].filter(Boolean).join(' · '), 48, PH + 170, W - 96);
+    g.font = '500 30px system-ui, sans-serif'; g.fillStyle = 'rgba(255,248,236,.7)';
+    g.fillText("James's Fishing Log · Tampa Bay", 48, PH + 230);
+    const out = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.9));
+    const file = new File([out], `${name.replace(/\W+/g, '-').toLowerCase()}.jpg`, { type: 'image/jpeg' });
+    if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: name });
+    else { const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; a.click(); }
+  } catch (e) { if (e?.name !== 'AbortError') home.toast('Could not make the share picture.'); }
+  finally { btn.disabled = false; }
 }
 $('#add-catch-btn').onclick = () => addCatchRow({ time: new Date().toTimeString().slice(0, 5) });
 form.date.onchange = () => $$('.catch [name=species]').forEach(s => s.onchange());
 
 async function openTrip(id) {
-  const t = id ? await store.getTrip(id) : { id: store.newId(), date: todayStr(), start: new Date().toTimeString().slice(0, 5), catches: [] };
+  const local = id ? (await outbox.pendingTrips()).find(p => p.id === id) : null;
+  const t = local || (id ? await store.getTrip(id) : { id: store.newId(), date: todayStr(), start: new Date().toTimeString().slice(0, 5), catches: [] });
   editing = { ...t };
   $('#trip-form-title').textContent = id ? 'Edit trip' : 'New trip';
   form.date.value = t.date; form.start.value = t.start || ''; form.end.value = t.end || '';
@@ -204,6 +261,18 @@ async function openTrip(id) {
   }, 50);
 }
 $('#new-trip-btn').onclick = () => openTrip(null);
+// Quick catch from Today: adds a catch to today's trip (or starts one at the spot you're looking at).
+$('#quick-catch').onclick = async () => {
+  if (!store.currentUser()) { show('log'); home.toast('Sign in first to log catches.', 3000); return; }
+  const today = todayStr();
+  let existing = null;
+  try { existing = [...await outbox.pendingTrips(), ...(navigator.onLine ? await store.listTrips() : [])].find(t => t.date === today) || null; } catch { }
+  await openTrip(existing?.id || null);
+  if (!existing) { const p = home.activePlace?.(); if (p && !form.spot.value) form.spot.value = p.name || ''; }
+  const fs = addCatchRow({ time: new Date().toTimeString().slice(0, 5) });
+  fs.scrollIntoView({ block: 'start' });
+  $('[name=species]', fs).focus();
+};
 $('#cancel-trip-btn').onclick = () => show('log');
 // Two taps to delete (no pop-up dialogs, which some browsers block).
 $('#delete-trip-btn').onclick = async e => {
@@ -237,6 +306,10 @@ form.onsubmit = async e => {
     spot: form.spot.value.trim(), notes: form.notes.value.trim(),
     catches: $$('#catch-list .catch').map(fs => ({
       species: $('[name=species]', fs).value,
+      otherName: $('[name=species]', fs).value === 'other' ? $('[name=otherName]', fs).value.trim() : '',
+      count: Math.max(1, Math.round(+$('[name=count]', fs).value || 1)),
+      first: $('[name=first]', fs).checked,
+      angler: $('[name=angler]', fs).value.trim(),
       length: +$('[name=length]', fs).value || null,
       weight: +$('[name=weight]', fs).value || null,
       bait: $('[name=bait]', fs).value.trim(),
@@ -246,8 +319,9 @@ form.onsubmit = async e => {
       setupText: $('[name=setupText]', fs).value.trim(),
       time: $('[name=time]', fs).value,
       kept: $('[name=kept]', fs).checked,
-      photo: fs._photo || null,
-      photoPath: fs._photo ? null : fs._photoPath,
+      photo: fs._pics[0]?.blob || null,
+      photoPath: fs._pics[0] && !fs._pics[0].blob ? fs._pics[0].path : null,
+      more: fs._pics.slice(1).map(p => p.blob || p.path),
       setup: fs._setup || null,
       setupPath: fs._setup ? null : fs._setupPath,
       voices: fs._voice.get(),
@@ -259,20 +333,32 @@ form.onsubmit = async e => {
   };
   $$('#catch-list .catch').forEach(fs => fs._voice.stop());
   tripVoice?.stop();
-  const btn0 = $('button[type=submit]', form); btn0.disabled = true; btn0.textContent = 'Checking conditions…';
+  const btn = $('button[type=submit]', form); btn.disabled = true; btn.textContent = 'Checking conditions…';
+  // Weak signal shouldn't hold the save hostage: each lookup gets a few seconds, then we move on.
+  const quick = (p, ms = 6000) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
+  const online = navigator.onLine;
   // Look up conditions for any catch that has a time but no (or out-of-date) conditions.
   await Promise.all(trip.catches.map(async c => {
     const fs = c._fs; delete c._fs;
     const when = catchWhen(fs); if (!when) { c.cond = null; return; }
     const key = condKey(when, catchWhere());
-    if (c.cond?.key !== key) { const r = await conditionsAt(...catchWhere(), when).catch(() => null); c.cond = r ? { ...r, key } : null; }
+    if (c.cond?.key !== key) { const r = online ? await quick(conditionsAt(...catchWhere(), when).catch(() => null)) : null; c.cond = r ? { ...r, key } : null; }
   }));
-  btn0.disabled = false;
-  const c = await conditionsFor(trip);
-  trip.conditions = c.text; trip.moonPhase = c.moonPhase; trip.station = c.station; trip.waterTemp = c.waterTemp;
-  const btn = $('button[type=submit]', form); btn.disabled = true; btn.textContent = 'Saving…';
-  try { await store.saveTrip(trip); show('log'); }
-  catch (err) { $('#save-msg').textContent = err.message; }
+  const c = online ? await quick(conditionsFor(trip).catch(() => null)) : null;
+  if (c) { trip.conditions = c.text; trip.moonPhase = c.moonPhase; trip.station = c.station; trip.waterTemp = c.waterTemp; }
+  btn.textContent = 'Saving…';
+  const keepLocal = async () => {
+    await outbox.queueTrip(trip);
+    home.toast('No signal. Saved on this phone; it uploads when you have service.', 4000);
+    show('log');
+  };
+  try {
+    if (!online) await keepLocal();
+    else { await store.saveTrip(trip); await outbox.dropTrip(trip.id).catch(() => { }); show('log'); }
+  } catch (err) {
+    if (outbox.isOffline(err)) { try { await keepLocal(); } catch { $('#save-msg').textContent = err.message; } }
+    else $('#save-msg').textContent = err.message;
+  }
   finally { btn.disabled = false; btn.textContent = 'Save trip'; }
 };
 
@@ -378,9 +464,19 @@ store.watchAuth(u => {
   if (u) {
     authMsg(''); if ($('#view-log').classList.contains('active')) renderTrips();
     home.syncFavs(); // merge starred spots from the account with this phone's
+    uploadWaiting();
   }
   else if ($('#view-trip').classList.contains('active')) show('log');
 });
+
+// ---------- trips saved without signal ----------
+async function uploadWaiting() {
+  if (!store.currentUser() || !navigator.onLine) return;
+  const n = await outbox.flush(store.saveTrip).catch(() => 0);
+  if (n) { home.toast(`Uploaded ${n} trip${n === 1 ? '' : 's'} saved without signal.`, 3000); if ($('#view-log').classList.contains('active')) renderTrips(); }
+}
+window.addEventListener('online', uploadWaiting);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') uploadWaiting(); });
 
 // ---------- start ----------
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => { });
