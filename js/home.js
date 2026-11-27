@@ -2,7 +2,7 @@
 // starred spots with their tides, what's biting, today's tide curve and the week ahead.
 import { STATIONS, loadStations, getHiLo, heightAt, flowAt, nearestStation } from './tides.js';
 import { moonInfo, solunarDay, forecast, scoreAt } from './solunar.js';
-import { SPOTS, nearestSpot, km, setMySpots, mySpots, SPOT_TYPES, loadOsmSpots } from './spots.js';
+import { SPOTS, nearestSpot, km, setMySpots, mySpots, SPOT_TYPES, loadOsmSpots, ACCESS, accessOf, infoOf } from './spots.js';
 import { latestWaterTemp, windForecast, windAt, windCells, windCellAt, windLimit } from './conditions.js';
 import { makeContext, rankSpecies, catchHistory, feltWind } from './recommend.js';
 import { recentSightings, redTideSamples, redTideAt } from './sightings.js';
@@ -39,7 +39,7 @@ export function place(key) {
   const [kind, id] = String(key).split(':');
   if (kind === 'spot') {
     const s = SPOTS.find(x => x.id === id); if (!s) return null;
-    return { key, name: s.name, short: s.custom ? s.name : s.name.split(/ [&(/]/)[0], lat: s.lat, lng: s.lng, tags: s.tags, boat: s.boat, custom: s.custom, type: s.type, station: nearestStation(s.lat, s.lng) };
+    return { key, id: s.id, cat: s.cat, name: s.name, short: s.custom ? s.name : s.name.split(/ [&(/]/)[0], lat: s.lat, lng: s.lng, tags: s.tags, boat: s.boat, custom: s.custom, type: s.type, station: nearestStation(s.lat, s.lng) };
   }
   const st = STATIONS.find(x => x.id === id); if (!st) return null;
   const near = nearestSpot(st.lat, st.lng);
@@ -153,6 +153,7 @@ async function draw() {
   renderBiting(p, hilo, v, now);
   renderTide(p, hilo, v, now);
   renderWeek(p, hilo, now);
+  renderSpotInfo(p, hilo, now);
 }
 
 function renderHero(v) {
@@ -275,6 +276,44 @@ function renderTide(p, hilo, v, now) {
     + v.day.periods.map(s => `<li class="${s.end < now ? 'past' : ''}"><span>${s.kind === 'major' ? 'Major feed' : 'Minor feed'}</span><span>${fmtTime(s.start)}–${fmtTime(s.end)}</span><span class="muted">${esc(s.label)}</span></li>`).join('');
 }
 
+// ---------- about this spot: how to fish it, what's there, and a wade window ----------
+function renderSpotInfo(p, hilo, now) {
+  const card = $('#spot-info-card'); if (!card) return;
+  const isSpot = p.key.startsWith('spot:');
+  const acc = isSpot ? accessOf(p) : [], info = isSpot ? infoOf(p) : null;
+  if (!acc.length && !info) { card.hidden = true; return; }
+  card.hidden = false;
+  $('#spot-info-title').textContent = p.short;
+  const facts = info ? [info.parking && `🅿️ ${info.parking}`, info.restrooms && '🚻 Restrooms', info.bait && '🦐 Bait shop', info.launch && '🛶 Kayak launch', info.kids && '👧 Good for kids'].filter(Boolean) : [];
+  $('#spot-info').innerHTML = `<div class="chips">${acc.map(a => `<span class="chip">${ACCESS[a]}</span>`).join('')}</div>
+    ${facts.length ? `<ul class="plain small spot-facts">${facts.map(f => `<li>${esc(f)}</li>`).join('')}</ul>` : ''}
+    ${info?.note ? `<p class="small">${esc(info.note)}</p>` : ''}
+    ${acc.includes('wade') ? wadeWindow(p, hilo, now) : ''}
+    <div class="row"><a class="btn" href="https://maps.apple.com/?daddr=${p.lat},${p.lng}" target="_blank" rel="noopener">Directions ↗</a></div>
+    ${info ? '<p class="small muted">Check hours and fees before you go.</p>' : ''}`;
+}
+
+// Daylight low tides over the next 3 days, with when the water comes back up about a foot.
+function wadeWindow(p, hilo, now) {
+  if (!hilo) return '';
+  const rows = [];
+  for (const q of hilo) {
+    if (q.type !== 'L' || q.t < now - 2 * H || q.t > +now + 3 * 24 * H) continue;
+    const day = solunarDay(q.t, p.lat, p.lng);
+    const start = new Date(+q.t - 2 * H);
+    if (+q.t + 2 * H < +day.sunrise - H / 2 || +start > +day.sunset) continue; // dark the whole time
+    let back = null; // when the water is ~0.8 ft above the low
+    for (let m = 10; m <= 300; m += 10) { const h = heightAt(hilo, new Date(+q.t + m * 60e3)); if (h != null && h >= q.v + 0.8) { back = new Date(+q.t + m * 60e3); break; } }
+    const dayName = q.t.toDateString() === now.toDateString() ? 'Today' : q.t.toLocaleDateString([], { weekday: 'short' });
+    rows.push(`<li><strong>${dayName}: low ${q.v.toFixed(1)} ft at ${fmtTime(q.t)}</strong>
+      <span>Wade ${fmtTime(start)}–${fmtTime(back || new Date(+q.t + 2 * H))}${back ? `; water's back up by ${fmtTime(back)}, so head in before then` : ''}.${q.v > 1 ? ' Higher low than usual: more water on the flat.' : ''}</span></li>`);
+    if (rows.length === 3) break;
+  }
+  const m = now.getMonth() + 1, rays = m >= 11 || m <= 5;
+  return `<h3>Wade window</h3>${rows.length ? `<ul class="plain small wade-list">${rows.join('')}</ul>` : '<p class="small muted">No daylight low tides in the next 3 days.</p>'}
+    <p class="small muted">${rays ? 'Stingray season: shuffle your feet. ' : ''}Tide from NOAA ${esc(p.station.name)}; on the flat it can run 30–60 min different.</p>`;
+}
+
 function renderWeek(p, hilo, now) {
   const fc = forecast(now, 7, p.lat, p.lng, hilo, DAYTIME);
   // knock down days when the daytime wind here is over your limit
@@ -304,7 +343,7 @@ function renderSheet() {
   const row = key => {
     const p = place(key); if (!p || (q && !p.name.toLowerCase().includes(q))) return '';
     const on = favs.includes(key);
-    return `<li class="${key === active ? 'active' : ''}"><button type="button" class="pick-row" data-key="${esc(key)}">${esc(p.name)}${p.custom ? ' <span class="muted small">(mine)</span>' : p.boat ? ' <span class="muted small">(boat)</span>' : ''}</button>
+    return `<li class="${key === active ? 'active' : ''}"><button type="button" class="pick-row" data-key="${esc(key)}">${esc(p.name)}${p.custom ? ' <span class="muted small">(mine)</span>' : ''}${p.id ? ` <span class="acc-icons" aria-label="${accessOf(p).join(', ')}">${accessOf(p).map(a => ACCESS[a].split(' ')[0]).join('')}</span>` : ''}</button>
       <button type="button" class="row-map" data-map="${esc(key)}" aria-label="Show ${esc(p.name)} on a map">🗺</button>
       <button type="button" class="star ${on ? 'on' : ''}" data-star="${esc(key)}" aria-pressed="${on}" aria-label="${on ? 'Remove from' : 'Add to'} My spots">${on ? '★' : '☆'}</button></li>`;
   };

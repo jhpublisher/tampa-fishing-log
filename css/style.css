@@ -421,3 +421,9 @@ a.btn.primary { background: var(--coral); color: #fff; border-color: var(--coral
 .text-size[aria-pressed="true"] { background: var(--coral); border-color: var(--coral); }
 html.big { font-size: 118%; }
 html.big body { font-size: 20px; }
+
+/* ---------- spot info and wade window ---------- */
+.spot-facts li { padding: 4px 0; }
+.wade-list li { display: block; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.wade-list li span { display: block; }
+#spot-info h3 { margin: 12px 0 4px; }

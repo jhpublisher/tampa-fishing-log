@@ -82,7 +82,58 @@ export const SPOTS = [
   { id: 'emerson-point', cat: 'flats', name: 'Emerson Point Preserve', lat: 27.5330, lng: -82.6270, tags: ['flats', 'mangroves', 'oysters'] },
   { id: 'manatee-river', cat: 'flats', name: 'Manatee River, Bradenton Riverwalk', lat: 27.5000, lng: -82.5700, tags: ['river', 'docks', 'bridges'] },
   { id: 'robinson-preserve', cat: 'flats', name: 'Robinson Preserve', lat: 27.5050, lng: -82.6650, tags: ['flats', 'mangroves', 'oysters'] },
+  // Wading flats (added for waders; pins approximate)
+  { id: 'desoto-north-beach', cat: 'flats', name: 'Fort De Soto North Beach flats', lat: 27.6400, lng: -82.7405, tags: ['flats', 'beach', 'pass'] },
+  { id: 'desoto-east-beach', cat: 'flats', name: 'Fort De Soto East Beach flats', lat: 27.6150, lng: -82.7060, tags: ['flats', 'beach', 'bay'] },
+  { id: 'mullet-key-bayou', cat: 'flats', name: 'Mullet Key Bayou', lat: 27.6480, lng: -82.7150, tags: ['flats', 'mangroves', 'oysters'] },
 ];
+
+// ---------- how you can fish each spot ----------
+export const ACCESS = { shore: '🚶 Shore', wade: '🩳 Wade', kayak: '🛶 Kayak', boat: '🚤 Boat' };
+const BOAT_ONLY = ['egmont', 'nearshore-reefs', 'passage-key', 'hurricane-pass', 'anclote'];
+const NO_WADE = ['skyway-piers', 'skyway-south', 'howard-frankland', 'gandy', 'bayside-bridge', 'green-bridge', 'st-pete-pier', 'redington-pier', 'pier-60', 'hillsborough-river', 'bayshore', 'manatee-river', 'desoto-gulf-pier', 'rod-reel-pier'];
+// Returns e.g. ['shore', 'wade', 'kayak'].
+export function accessOf(s) {
+  if (!s) return [];
+  if (s.custom) return [s.type || 'shore'];
+  if (BOAT_ONLY.includes(s.id) || s.cat === 'offshore') return ['boat'];
+  if (s.boat) return ['kayak', 'boat'];
+  const t = s.tags || [], out = ['shore'];
+  if (!NO_WADE.includes(s.id) && (t.includes('flats') || t.includes('beach'))) out.push('wade');
+  if (t.includes('flats') || t.includes('mangroves')) out.push('kayak');
+  return out;
+}
+
+// What's there. Only filled in where we're confident; always check before you go.
+// parking, restrooms (bool), kids (good for kids), bait (bait shop on site), launch (kayak launch), note.
+export const INFO = {
+  'fort-desoto': { parking: 'Park entry fee per vehicle', restrooms: true, kids: true, bait: true, note: 'Two long piers with bait shops (Gulf and Bay). Wade the North Beach and East Beach flats.' },
+  'desoto-gulf-pier': { parking: 'Park entry fee per vehicle', restrooms: true, kids: true, bait: true },
+  'desoto-bay-pier': { parking: 'Park entry fee per vehicle', restrooms: true, kids: true, bait: true },
+  'desoto-north-beach': { parking: 'Park entry fee per vehicle', restrooms: true, kids: true, note: 'Shallow sand and grass flats; watch the current near Bunces Pass.' },
+  'desoto-east-beach': { parking: 'Park entry fee per vehicle', restrooms: true, kids: true, note: 'Long shallow grass flats facing the bay.' },
+  'mullet-key-bayou': { parking: 'Fort De Soto park fee', launch: true, note: 'Calm paddling water between Tierra Verde and Fort De Soto.' },
+  'skyway-piers': { parking: 'State park fee per vehicle and per person', restrooms: true, bait: true, note: 'Open 24 hours. Park beside your spot on the pier. Ask at the bait shop whether the pier license covers you.' },
+  'skyway-south': { parking: 'State park fee per vehicle and per person', restrooms: true, bait: true, note: 'Open 24 hours. Park beside your spot on the pier.' },
+  'pier-60': { parking: 'Paid garages and meters', restrooms: true, kids: true, bait: true, note: 'Small fee to fish; rod rentals at the bait shop.' },
+  'johns-pass': { parking: 'Paid lots and meters', restrooms: true, kids: true, bait: true, note: 'Boardwalk with shops and food. Crowded on weekends.' },
+  'picnic-island': { parking: 'Free', restrooms: true, kids: true, note: 'Fishing pier and shoreline. A good family spot.' },
+  'ballast-point': { parking: 'Free', restrooms: true, kids: true, note: 'Pier, playground and snack bar.' },
+  'weedon': { parking: 'Free', restrooms: true, kids: true, launch: true, note: 'Fishing pier, boardwalks and a kayak launch with a paddling trail.' },
+  'anna-maria-city-pier': { parking: 'Paid street parking', restrooms: true, kids: true, bait: true },
+  'honeymoon-island': { parking: 'State park entry fee', restrooms: true, kids: true },
+  'fred-howard': { parking: 'Park entry fee', restrooms: true, kids: true },
+  'ben-t-davis': { parking: 'Free along the causeway', restrooms: true, kids: true },
+  'courtney-campbell': { parking: 'Free pull-offs along the causeway', note: 'Wade or fish from the beach along the causeway.' },
+  'gandy': { parking: 'Free pull-offs along the causeway' },
+  'philippe-park': { parking: 'Free', restrooms: true, kids: true },
+  'upper-tampa-bay-park': { parking: 'Small entry fee', restrooms: true, launch: true },
+  'simmons-park': { parking: 'Entry fee per vehicle', restrooms: true, kids: true, launch: true },
+  'emerson-point': { parking: 'Free', restrooms: true, launch: true },
+  'robinson-preserve': { parking: 'Free', restrooms: true, launch: true },
+  'gulfport-pier': { parking: 'Paid', restrooms: true, kids: true },
+};
+export const infoOf = s => (s && INFO[s.id]) || null;
 
 export const spotById = id => SPOTS.find(s => s.id === id);
 

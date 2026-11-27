@@ -1,6 +1,6 @@
 // "Plan" tab: what to target at a spot and time, and where/when to go for a species.
 import { getHiLo, nearestStation, loadStations } from './tides.js';
-import { SPOTS, spotById, nearestSpot, CATS, catOf } from './spots.js';
+import { SPOTS, spotById, nearestSpot, CATS, catOf, accessOf } from './spots.js';
 import { spotCombo, saveLoc, refPoint } from './placesearch.js';
 import { addSpotAt, place, activePlace } from './home.js';
 import { estimateWaterTemp, latestWaterTemp, typicalTemp, windForecast, windAt, windCells, windCellAt, spotWind, windLimit, setWindLimit } from './conditions.js';
@@ -124,7 +124,8 @@ $('#plan-where').onsubmit = async e => {
   const id = spSel.value, days = 7, start = new Date();
   status(out, 'Scoring every spot for the next 7 days…');
   await loadStations();
-  const pool = SPOTS.filter(s => !s.osm);
+  const acc = $('#plan-access').value;
+  const pool = SPOTS.filter(s => !s.osm && (!acc || accessOf(s).includes(acc)));
   const stations = [...new Set(pool.map(s => nearestStation(s.lat, s.lng).id))];
   const hiloBy = new Map(await Promise.all(stations.map(async sid => [sid, await getHiLo(sid, start, days).catch(() => null)])));
   const [wind, cells, hist, live, sightings, redtide] = await Promise.all([windForecast(), windCells(pool.map(s => [s.lat, s.lng])), history(), latestWaterTemp(27.77, -82.63), recentSightings(30), redTideSamples()]);
